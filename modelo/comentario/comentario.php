@@ -1,5 +1,5 @@
 <?php 
-  function RegistrarComentario($idPublicacion, $idEstudiante, $conComentario){
+  function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
       require_once("../../configuracion/conexion.php");
 
       // Respuesta por defecto

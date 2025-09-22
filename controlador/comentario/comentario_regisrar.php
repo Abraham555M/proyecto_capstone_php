@@ -4,7 +4,7 @@
     $conComentario = $_POST['conComentario'];  
 
     require_once("../../modelo/comentario/comentario.php");
-    $rpta = RegistrarComentario($idPublicacion, $idEstudiante, $conComentario);
+    $rpta = registrarComentario($idPublicacion, $idEstudiante, $conComentario);
     echo json_encode($rpta);
 ?>
 
