@@ -1,6 +1,4 @@
 <?php 
-    require_once "../../configuracion/conexion.php";
-
     use PHPMailer\PHPMailer\PHPMailer;
     use PHPMailer\PHPMailer\Exception;
 
@@ -86,7 +84,7 @@
                 $codigo = rand(100000, 999999);
 
                 // Guardar el código en la BD
-                $sqlUpdate = "UPDATE estudiante SET codigo_recuperacion = ? WHERE id_estudiante = ?";
+                $sqlUpdate = "UPDATE estudiante SET cod_estudiante = ? WHERE id_estudiante = ?";
                 $stmtUpdate = mysqli_prepare($con, $sqlUpdate);
                 mysqli_stmt_bind_param($stmtUpdate, "ii", $codigo, $idEstudiante);
 
@@ -142,7 +140,7 @@
         $data = ["status" => "error", "message" => "Código inválido"];
 
         if ($con) {
-            $sql = "SELECT codigo_recuperacion FROM estudiante WHERE ema_estudiante = ?";
+            $sql = "SELECT cod_estudiante FROM estudiante WHERE ema_estudiante = ?";
             $stmt = mysqli_prepare($con, $sql);
             mysqli_stmt_bind_param($stmt, "s", $correo);
             mysqli_stmt_execute($stmt);
@@ -150,7 +148,7 @@
 
             if ($row = mysqli_fetch_assoc($result)) {
                 // Comparación flexible por si uno es string y otro int
-                if ((string)$row['codigo_recuperacion'] == (string)$codigo) {
+                if ((string)$row['cod_estudiante'] == (string)$codigo) {
                     $data = ["status" => "success", "message" => "Código válido"];
                 }
             }
@@ -180,6 +178,8 @@
 
     // Gonzalo
     function crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede) {
+        require_once("../../configuracion/conexion.php");
+
         // Cifrar la contraseña
         $passwordHash = password_hash($contrasena, PASSWORD_BCRYPT);
 
@@ -212,7 +212,7 @@
         // ======= Guardar datos en BD =======
         $sql = "INSERT INTO estudiante 
             (id_sexo, id_sede, id_tipo_usuario, nom_estudiante, ape_pat_estudiante, ape_mat_estudiante, fch_reg_estudiante, est_estudiante, ema_estudiante, pas_estudiante, cod_estudiante) 
-            VALUES (1, 1, 1, ?, ?, ?, NOW(), 1, ?, ?, ?)";
+            VALUES (?, ?, 1, ?, ?, ?, NOW(), 1, ?, ?, ?)";
 
         $stmt = $con->prepare($sql);
 
@@ -221,7 +221,7 @@
         }
 
         // Vincular parámetros dinámicos
-        $stmt->bind_param("ssssss", $nombres, $apePat, $apeMat, $correo, $passwordHash, $codigo);
+        $stmt->bind_param("iissssss", $sexo, $sede, $nombres, $apePat, $apeMat, $correo, $passwordHash, $codigo);
 
         if ($stmt->execute()) {
             return [
@@ -237,7 +237,7 @@
     function obtenerSedes($con){
         $sedes = array();
 
-        $sql = "SELECT id_sede, nom_sede FROM Sede ORDER BY id_sede ASC";
+        $sql = "SELECT id_sede, nom_sede FROM sede ORDER BY id_sede ASC";
         $stmt = $con->prepare($sql);
         if ($stmt) {
             $stmt->execute();
