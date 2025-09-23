@@ -212,7 +212,7 @@
         // ======= Guardar datos en BD =======
         $sql = "INSERT INTO estudiante 
             (id_sexo, id_sede, id_tipo_usuario, nom_estudiante, ape_pat_estudiante, ape_mat_estudiante, fch_reg_estudiante, est_estudiante, ema_estudiante, pas_estudiante, cod_estudiante) 
-            VALUES (1, 1, 1, ?, ?, ?, NOW(), 1, ?, ?, ?)";
+            VALUES (?, ?, 1, ?, ?, ?, NOW(), 1, ?, ?, ?)";
 
         $stmt = $con->prepare($sql);
 
@@ -221,7 +221,7 @@
         }
 
         // Vincular parámetros dinámicos
-        $stmt->bind_param("ssssss", $nombres, $apePat, $apeMat, $correo, $passwordHash, $codigo);
+        $stmt->bind_param("iissssss", $sexo, $sede, $nombres, $apePat, $apeMat, $correo, $passwordHash, $codigo);
 
         if ($stmt->execute()) {
             return [
@@ -237,7 +237,7 @@
     function obtenerSedes($con){
         $sedes = array();
 
-        $sql = "SELECT id_sede, nom_sede FROM Sede ORDER BY id_sede ASC";
+        $sql = "SELECT id_sede, nom_sede FROM sede ORDER BY id_sede ASC";
         $stmt = $con->prepare($sql);
         if ($stmt) {
             $stmt->execute();
