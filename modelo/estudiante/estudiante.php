@@ -82,4 +82,53 @@ function validarCodigo($con, $email, $codigo) {
     return $existe;
 }
 
+function obtenerSedes($con){
+    $sedes = array();
+
+    $sql = "SELECT id_sede, nom_sede FROM Sede ORDER BY id_sede ASC";
+    $stmt = $con->prepare($sql);
+    if ($stmt) {
+        $stmt->execute();
+        $resultado = $stmt->get_result();
+
+        while ($fila = $resultado->fetch_assoc()) {
+            $sedes[] = array(
+                "id_sede" => (int)$fila['id_sede'],
+                "nom_sede" => $fila['nom_sede']
+            );
+        }
+
+        $stmt->close();
+    } else {
+        // Opcional: devolver un mensaje de error si falla la consulta
+        $sedes[] = array("error" => "Error al preparar la consulta: " . $con->error);
+    }
+
+    return $sedes;
+}
+
+function obtenerSexo($con){
+    $sexo = array();
+
+    $sql = "SELECT id_sexo, nom_sexo FROM sexo ORDER BY id_sexo ASC";
+    $stmt = $con->prepare($sql);
+    if ($stmt) {
+        $stmt->execute();
+        $resultado = $stmt->get_result();
+
+        while ($fila = $resultado->fetch_assoc()) {
+            $sexo[] = array(
+                "id_sexo" => (int)$fila['id_sexo'],
+                "nom_sexo" => $fila['nom_sexo']
+            );
+        }
+
+        $stmt->close();
+    } else {
+        // Opcional: devolver un mensaje de error si falla la consulta
+        $sexo[] = array("error" => "Error al preparar la consulta: " . $con->error);
+    }
+
+    return $sexo;
+}
 ?>
