@@ -4,7 +4,7 @@
     $idTipoReporte = $_POST['idTipoReporte'];  
 
     require_once("../../modelo/reporte/reporte.php");
-    $rpta = registrarLike($idEstudiante, $idPublicacion, $idTipoReporte);
+    $rpta = registrarReporte($idEstudiante, $idPublicacion, $idTipoReporte);
     echo json_encode($rpta);
 ?>
 
