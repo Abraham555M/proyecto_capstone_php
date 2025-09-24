@@ -84,7 +84,9 @@
             $codigo = rand(1000, 9999);
 
             // Guardar el código en la BD
-            $sqlUpdate = "UPDATE estudiante SET cod_estudiante = ? WHERE id_estudiante = ?";
+            $sqlUpdate = "UPDATE estudiante 
+              SET cod_estudiante = ?, cod_expira = DATE_ADD(NOW(), INTERVAL 10 MINUTE) 
+              WHERE id_estudiante = ?";
             $stmtUpdate = mysqli_prepare($con, $sqlUpdate);
             mysqli_stmt_bind_param($stmtUpdate, "ii", $codigo, $idEstudiante);
 
@@ -101,7 +103,7 @@
                     $mail->SMTPSecure = 'tls';
                     $mail->Port = 587;
 
-                    $mail->setFrom('tu_correo@gmail.com', 'Soporte Proyecto Capstone');
+                    $mail->setFrom('alexxanderay@gmail.com', 'Soporte Proyecto Capstone');
                     $mail->addAddress($correo);
 
                     $mail->isHTML(true);
@@ -134,25 +136,37 @@
     function ValidarCodigoRecuperacion($correo, $codigo) {
     require_once("../../configuracion/conexion.php");
 
-    $data = ["status" => "error", "message" => "Código inválido"];
+    $data = ["status" => "error", "message" => "Código inválido o expirado"];
 
     if ($con) {
-        $sql = "SELECT cod_estudiante FROM estudiante WHERE ema_estudiante = ?";
+        $sql = "SELECT cod_estudiante, cod_expira 
+                FROM estudiante 
+                WHERE ema_estudiante = ?";
         $stmt = mysqli_prepare($con, $sql);
         mysqli_stmt_bind_param($stmt, "s", $correo);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
 
         if ($row = mysqli_fetch_assoc($result)) {
-            if ((string)$row['cod_estudiante'] === (string)$codigo) {
-                $data = ["status" => "success", "message" => "Código válido"];
+            $codigoBD = $row['cod_estudiante'];
+            $expira   = $row['cod_expira'];
 
-                //  Borrar el código para que solo se pueda usar una vez
-                $sqlBorrar = "UPDATE estudiante SET cod_estudiante = NULL WHERE ema_estudiante = ?";
-                $stmtBorrar = mysqli_prepare($con, $sqlBorrar);
-                mysqli_stmt_bind_param($stmtBorrar, "s", $correo);
-                mysqli_stmt_execute($stmtBorrar);
-                mysqli_stmt_close($stmtBorrar);
+            // Verificar código y expiración
+            if ((string)$codigoBD === (string)$codigo) {
+                if ($expira && strtotime($expira) > time()) {
+                    $data = ["status" => "success", "message" => "Código válido"];
+
+                    // 🔹 Borrar el código para que solo se use una vez
+                    $sqlBorrar = "UPDATE estudiante 
+                                  SET cod_estudiante = NULL, cod_expira = NULL 
+                                  WHERE ema_estudiante = ?";
+                    $stmtBorrar = mysqli_prepare($con, $sqlBorrar);
+                    mysqli_stmt_bind_param($stmtBorrar, "s", $correo);
+                    mysqli_stmt_execute($stmtBorrar);
+                    mysqli_stmt_close($stmtBorrar);
+                } else {
+                    $data = ["status" => "error", "message" => "El código ha expirado"];
+                }
             }
         }
 
@@ -164,7 +178,7 @@
 
     return $data;
 }
-    
+
     function CambiarPassword($correo, $newPass) {
     require_once("../../configuracion/conexion.php");
 
