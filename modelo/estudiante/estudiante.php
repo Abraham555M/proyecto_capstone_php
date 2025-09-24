@@ -197,37 +197,11 @@
 }
 
     // Gonzalo
-    function crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede) {
+    function crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede, $codigo) {
         require_once("../../configuracion/conexion.php");
 
         // Cifrar la contraseña
         $passwordHash = password_hash($contrasena, PASSWORD_BCRYPT);
-
-        // Generar código de verificación de 4 dígitos
-        $codigo = rand(1000, 9999);
-
-        // ======= Enviar correo con PHPMailer =======
-        $mail = new PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';
-            $mail->SMTPAuth   = true;
-            $mail->Username   = 'gohecaze@gmail.com'; // tu Gmail
-            $mail->Password   = 'tgld ngvj dlsk abll';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = 587;
-
-            $mail->setFrom('gohecaze@gmail.com', 'TuApp');
-            $mail->addAddress($correo, $nombres);
-
-            $mail->isHTML(true);
-            $mail->Subject = 'Código de verificación - TuApp';
-            $mail->Body    = "Hola <b>$nombres</b>,<br><br>Tu código de verificación es: <b>$codigo</b><br><br>Por favor ingrésalo en la aplicación para activar tu cuenta.";
-
-            $mail->send();
-        } catch (Exception $e) {
-            return ["status" => "error", "msg" => "No se pudo enviar el correo: {$mail->ErrorInfo}"];
-        }
 
         // ======= Guardar datos en BD =======
         $sql = "INSERT INTO estudiante 

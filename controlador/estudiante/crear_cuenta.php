@@ -11,8 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $celular    = $_POST['celular'] ?? '';
     $sexo       = $_POST['sexo'] ?? '';
     $sede       = $_POST['sede'] ?? '';
+    $codigo     = $_POST['codigo'] ?? '';
 
-    $resultado = crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede);
+    $resultado = crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede, $codigo);
 
     echo json_encode($resultado);
 }
