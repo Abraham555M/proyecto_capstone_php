@@ -110,8 +110,7 @@
                         $mail->isHTML(true);
                         $mail->Subject = 'Código de recuperación';
                         $mail->Body = "<h2>Recuperación de contraseña</h2>
-                                    <p>Tu código de recuperación es: <b>$codigo</b></p>
-                                    <p>Si no solicitaste este correo, ignóralo.</p>";
+                                    <p>Tu código de recuperación es: <b>$codigo</b></p>";
 
                         $mail->send();
 
