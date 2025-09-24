@@ -49,5 +49,9 @@
         return $data; 
     }  
 
+    function listarPublicacionPerfil($idEstudiante, $idEmprendimiento){
+        
+    }
+
 
 ?>
