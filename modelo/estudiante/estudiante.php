@@ -22,7 +22,7 @@
 
                 if ($row = mysqli_fetch_assoc($result)) {
                     // ✅ Comparación simple sin hash
-                    if (password_verify($password, $row['pas_estudiante'])) {
+                    if ($password === $row['pas_estudiante']) {
                         $data = array(
                             "status" => "success",
                             "message" => "Inicio de sesión correcto",
@@ -164,7 +164,6 @@
     
     function CambiarPassword($correo, $newPass) {
         require_once("../../configuracion/conexion.php");
-        $passwordHash = password_hash($newPass, PASSWORD_BCRYPT);
 
         $sql = "UPDATE estudiante SET pas_estudiante=? WHERE ema_estudiante=?";
         $stmt = mysqli_prepare($con, $sql);
