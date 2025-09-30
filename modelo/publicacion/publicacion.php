@@ -4,6 +4,7 @@
         
         $sql = "SELECT 
                     p.id_publicacion,
+                    e.id_emprendimiento,
                     e.nom_emprendimiento,
                     e.img_per_emprendimiento,
                     p.tit_publicacion,
@@ -30,6 +31,7 @@
                 WHERE p.est_publicacion = 1
                 GROUP BY 
                     p.id_publicacion,
+                    e.id_emprendimiento,
                     e.nom_emprendimiento,
                     e.img_per_emprendimiento,
                     p.tit_publicacion,

@@ -21,15 +21,7 @@ if (empty($correo) || empty($nombres)) {
 
 // Generar código de verificación de 4 dígitos
 $codigo = rand(1000, 9999);
-
-// Guardar el código en cod_estudiante
-$stmt = $con->prepare("UPDATE estudiante SET cod_estudiante = ? WHERE ema_estudiante = ?");
-$stmt->bind_param("ss", $codigo, $correo);
-
-if(!$stmt->execute()){
-    echo json_encode(["status" => "error", "msg" => "No se pudo guardar el código"]);
-    exit;
-}
+$expira = date("Y-m-d H:i:s", strtotime("+10 minutes"));
 
 // ======= Enviar correo con PHPMailer =======
 $mail = new PHPMailer(true);
@@ -46,13 +38,13 @@ try {
     $mail->addAddress($correo, $nombres);
 
     $mail->isHTML(true);
-    $mail->Subject = 'Código de verificación - TuApp';
+    $mail->Subject = 'Codigo de verificacion - TuApp';
     $mail->Body    = "Hola <b>$nombres</b>,<br><br>Tu codigo de verificacion es: <b>$codigo</b><br><br>Por favor ingresalo en la aplicacion para activar tu cuenta.";
 
     $mail->send();
 
     // Retornar JSON con el código
-    echo json_encode(["status" => "ok", "codigo" => (string)$codigo]);
+    echo json_encode(["status" => "ok", "codigo" => (string)$codigo, "expira" => $expira]);
 
 } catch (Exception $e) {
     echo json_encode(["status" => "error", "msg" => "No se pudo enviar el correo: {$mail->ErrorInfo}"]);
