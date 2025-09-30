@@ -55,5 +55,42 @@
         
     }
 
+    function listarComentariosPublicacion($idPublicacion){
+        require_once("../../configuracion/conexion.php"); // Aquí está $con
+        
+        $sql = "SELECT c.id_comentario,
+                    c.con_comentario,
+                    c.fch_comentario,
+                    e.nom_estudiante,
+                    e.ape_pat_estudiante,
+                    e.ape_mat_estudiante
+                FROM comentario c
+                INNER JOIN estudiante e ON c.id_estudiante = e.id_estudiante
+                WHERE c.id_publicacion = ?
+                ORDER BY c.fch_comentario DESC";
+
+        $comentarios = [];
+
+        if ($stmt = mysqli_prepare($con, $sql)) {
+            mysqli_stmt_bind_param($stmt, "i", $idPublicacion);
+            mysqli_stmt_execute($stmt);
+            $resultado = mysqli_stmt_get_result($stmt);
+
+            while ($row = mysqli_fetch_assoc($resultado)) {
+                $comentarios[] = [
+                    "id_comentario"  => $row["id_comentario"],
+                    "con_comentario" => $row["con_comentario"],
+                    "fch_comentario" => $row["fch_comentario"],
+                    "estudiante"     => $row["nom_estudiante"] . " " . $row["ape_pat_estudiante"] . " " . $row["ape_mat_estudiante"]
+                ];
+            }
+
+            mysqli_stmt_close($stmt);
+        }
+
+        return $comentarios;
+    }
+
+
 
 ?>

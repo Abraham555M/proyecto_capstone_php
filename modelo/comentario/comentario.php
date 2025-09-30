@@ -1,18 +1,18 @@
 <?php 
-  function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
+   function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
       require_once("../../configuracion/conexion.php");
 
       // Respuesta por defecto
       $data = array("status" => "error", "message" => "No se pudo registrar el comentario");
 
       if ($con) {
-         // Insertamos sin id_comentario porque es AUTO_INCREMENT
-         // fch_comentario usará el valor por defecto (CURRENT_TIMESTAMP)
-         $sql = "INSERT INTO comentario (id_publicacion, id_estudiante, con_comentario, fch_comentario) 
-                  VALUES (?, ?, ?, NOW())";
-         
+         // Insertamos con est_comentario en estado activo (1 por defecto)
+         $sql = "INSERT INTO comentario (id_publicacion, id_estudiante, con_comentario, fch_comentario, est_comentario) 
+                  VALUES (?, ?, ?, NOW(), ?)";
+
          if ($stmt = mysqli_prepare($con, $sql)) {
-               mysqli_stmt_bind_param($stmt, "iis", $idPublicacion, $idEstudiante, $conComentario);
+               $estado = 1; // estado activo
+               mysqli_stmt_bind_param($stmt, "iisi", $idPublicacion, $idEstudiante, $conComentario, $estado);
 
                if (mysqli_stmt_execute($stmt)) {
                   $data = array(
@@ -44,4 +44,5 @@
       mysqli_close($con);
       return $data; // Listo para json_encode
    }
+
 ?>
