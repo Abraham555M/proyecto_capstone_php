@@ -45,4 +45,51 @@
       return $data; // Listo para json_encode
    }
 
+    function registrarComentarioLike($idComentario, $idEstudiante){
+        include("../../configuracion/conexion.php"); 
+
+        // Verificar si ya existe un like en el comentario
+        $sql_check = "SELECT id_interaccion, est_interaccion 
+                      FROM interaccion 
+                      WHERE id_comentario = '$idComentario' 
+                      AND id_estudiante = '$idEstudiante' 
+                      AND id_tipo_interaccion = 1";
+        $res = mysqli_query($con, $sql_check);
+
+        if(mysqli_num_rows($res) > 0){
+            $row = mysqli_fetch_assoc($res);
+
+            if($row['est_interaccion'] == 1){
+                // Si ya estaba activo, desactivarlo
+                $sql_update = "UPDATE interaccion 
+                               SET est_interaccion = 0, fch_interaccion = NOW() 
+                               WHERE id_interaccion = '".$row['id_interaccion']."'";
+                if(mysqli_query($con, $sql_update)){
+                    return array("status" => "unliked");
+                } else {
+                    return array("status" => "error", "message" => mysqli_error($con));
+                }
+            } else {
+                // Si estaba inactivo, volver a activarlo
+                $sql_update = "UPDATE interaccion 
+                               SET est_interaccion = 1, fch_interaccion = NOW() 
+                               WHERE id_interaccion = '".$row['id_interaccion']."'";
+                if(mysqli_query($con, $sql_update)){
+                    return array("status" => "liked");
+                } else {
+                    return array("status" => "error", "message" => mysqli_error($con));
+                }
+            }
+        } else {
+            // Si no existe, insertar nuevo registro con like activo
+            $sql_insert = "INSERT INTO interaccion (id_estudiante, id_comentario, id_tipo_interaccion, est_interaccion, fch_interaccion) 
+                           VALUES ('$idEstudiante', '$idComentario', 1, 1, NOW())";
+            if(mysqli_query($con, $sql_insert)){
+                return array("status" => "liked");
+            } else {
+                return array("status" => "error", "message" => mysqli_error($con));
+            }
+        }
+   }
+
 ?>
