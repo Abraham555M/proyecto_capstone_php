@@ -22,6 +22,7 @@
 
             if ($row = mysqli_fetch_assoc($result)) {
                 // ✅ Comparación con hash de contraseña
+                $password = trim($password);
                 if (password_verify($password, $row['pas_estudiante'])) {
                     $data = array(
                         "status" => "success",
@@ -184,7 +185,8 @@
     require_once("../../configuracion/conexion.php");
 
     // Cifrar la nueva contraseña
-    $passwordHash = password_hash($newPass, PASSWORD_BCRYPT);
+    
+    $passwordHash = password_hash($newPass,PASSWORD_BCRYPT);
 
     $sql = "UPDATE estudiante SET pas_estudiante=? WHERE ema_estudiante=?";
     $stmt = mysqli_prepare($con, $sql);
@@ -198,11 +200,12 @@
 }
 
     // Gonzalo
-    function crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede) {
+    function crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede, $codigo) {
         require_once("../../configuracion/conexion.php");
 
         // Cifrar la contraseña
-        $passwordHash = password_hash($contrasena, PASSWORD_BCRYPT);
+        $contrasena = trim($contrasena);
+        $passwordHash = password_hash($contrasena,PASSWORD_BCRYPT);
 
         // Generar código de verificación de 4 dígitos
         $codigo = rand(1000, 9999);
@@ -232,7 +235,7 @@
 
         // ======= Guardar datos en BD =======
         $sql = "INSERT INTO estudiante 
-            (id_sexo, id_sede, id_tipo_usuario, nom_estudiante, ape_pat_estudiante, ape_mat_estudiante, fch_reg_estudiante, est_estudiante, ema_estudiante, pas_estudiante, cod_estudiante) 
+            (id_sexo,id_sede,id_tipo_usuario,nom_estudiante,ape_pat_estudiante,ape_mat_estudiante,fch_reg_estudiante,est_estudiante,ema_estudiante,pas_estudiante,cod_estudiante) 
             VALUES (?, ?, 1, ?, ?, ?, NOW(), 1, ?, ?, ?)";
 
         $stmt = $con->prepare($sql);
