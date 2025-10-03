@@ -1,5 +1,5 @@
 <?php 
-    function listarPublicacionInicio($idEstudiante){
+   function listarPublicacionInicio($idEstudiante){
         require_once("../../configuracion/conexion.php");
         
         $sql = "SELECT 
@@ -11,7 +11,8 @@
                     p.con_publicacion,
                     p.img_publicacion,
                     COUNT(i.id_interaccion) AS total_me_gusta,
-                    -- Nuevo campo: ¿ya le dio like este estudiante?
+
+                    -- ¿Ya le dio like este estudiante?
                     CASE 
                         WHEN EXISTS (
                             SELECT 1
@@ -21,7 +22,20 @@
                             AND i2.id_tipo_interaccion = 1
                         ) THEN 1
                         ELSE 0
-                    END AS dio_like
+                    END AS dio_like,
+
+                    -- ¿Ya sigue este estudiante al emprendimiento?
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM seguimiento s
+                            WHERE s.id_emprendimiento = e.id_emprendimiento
+                            AND s.id_estudiante = $idEstudiante
+                            AND s.est_seguimiento = 1
+                        ) THEN 1
+                        ELSE 0
+                    END AS siguiendo
+
                 FROM publicacion p
                 INNER JOIN emprendimiento e 
                     ON p.id_emprendimiento = e.id_emprendimiento
@@ -49,7 +63,8 @@
         }
 
         return $data; 
-    }  
+    }
+
 
     function listarPublicacionPerfil($idEstudiante, $idEmprendimiento){
         
