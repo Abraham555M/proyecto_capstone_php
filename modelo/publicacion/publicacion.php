@@ -83,24 +83,29 @@
         
     }
 
-    function listarComentariosPublicacion($idPublicacion){
-        require_once("../../configuracion/conexion.php"); // Aquí está $con
+   function listarComentariosPublicacion($idPublicacion, $idEstudiante){
+        require_once("../../configuracion/conexion.php");
         
         $sql = "SELECT c.id_comentario,
                     c.con_comentario,
                     c.fch_comentario,
                     e.nom_estudiante,
                     e.ape_pat_estudiante,
-                    e.ape_mat_estudiante
+                    e.ape_mat_estudiante,
+                    COUNT(DISTINCT CASE WHEN i.est_interaccion = 1 THEN i.id_interaccion END) as total_likes,
+                    MAX(CASE WHEN i.id_estudiante = ? AND i.id_tipo_interaccion = 1 AND i.est_interaccion = 1 THEN 1 ELSE 0 END) as dio_like
                 FROM comentario c
                 INNER JOIN estudiante e ON c.id_estudiante = e.id_estudiante
+                LEFT JOIN interaccion i ON c.id_comentario = i.id_comentario AND i.id_tipo_interaccion = 1
                 WHERE c.id_publicacion = ?
+                GROUP BY c.id_comentario, c.con_comentario, c.fch_comentario, 
+                        e.nom_estudiante, e.ape_pat_estudiante, e.ape_mat_estudiante
                 ORDER BY c.fch_comentario DESC";
 
         $comentarios = [];
 
         if ($stmt = mysqli_prepare($con, $sql)) {
-            mysqli_stmt_bind_param($stmt, "i", $idPublicacion);
+            mysqli_stmt_bind_param($stmt, "ii", $idEstudiante, $idPublicacion);
             mysqli_stmt_execute($stmt);
             $resultado = mysqli_stmt_get_result($stmt);
 
@@ -109,7 +114,9 @@
                     "id_comentario"  => $row["id_comentario"],
                     "con_comentario" => $row["con_comentario"],
                     "fch_comentario" => $row["fch_comentario"],
-                    "estudiante"     => $row["nom_estudiante"] . " " . $row["ape_pat_estudiante"] . " " . $row["ape_mat_estudiante"]
+                    "estudiante"     => $row["nom_estudiante"] . " " . $row["ape_pat_estudiante"] . " " . $row["ape_mat_estudiante"],
+                    "total_likes"    => (int)$row["total_likes"],
+                    "dio_like"       => (int)$row["dio_like"]
                 ];
             }
 
