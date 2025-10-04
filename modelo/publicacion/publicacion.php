@@ -1,5 +1,5 @@
 <?php 
-   function listarPublicacionInicio($idEstudiante){
+    function listarPublicacionInicio($idEstudiante){
         require_once("../../configuracion/conexion.php");
         
         $sql = "SELECT 
@@ -20,6 +20,7 @@
                             WHERE i2.id_publicacion = p.id_publicacion
                             AND i2.id_estudiante = $idEstudiante
                             AND i2.id_tipo_interaccion = 1
+                            AND i2.est_interaccion = 1
                         ) THEN 1
                         ELSE 0
                     END AS dio_like,
@@ -34,7 +35,19 @@
                             AND s.est_seguimiento = 1
                         ) THEN 1
                         ELSE 0
-                    END AS siguiendo
+                    END AS siguiendo,
+
+                    -- ¿Ya lo marcó como favorito?
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM favorito f
+                            WHERE f.id_publicacion = p.id_publicacion
+                            AND f.id_estudiante = $idEstudiante
+                            AND f.est_favorito = 1
+                        ) THEN 1
+                        ELSE 0
+                    END AS es_favorito
 
                 FROM publicacion p
                 INNER JOIN emprendimiento e 
@@ -42,6 +55,7 @@
                 LEFT JOIN interaccion i 
                     ON i.id_publicacion = p.id_publicacion 
                     AND i.id_tipo_interaccion = 1
+                    AND i.est_interaccion = 1
                 WHERE p.est_publicacion = 1
                 GROUP BY 
                     p.id_publicacion,
@@ -64,7 +78,6 @@
 
         return $data; 
     }
-
 
     function listarPublicacionPerfil($idEstudiante, $idEmprendimiento){
         
@@ -106,6 +119,77 @@
         return $comentarios;
     }
 
+    function cantidadPublicacionesPerfil($idEstudiante){
+        require_once("../../configuracion/conexion.php"); // archivo con la conexión $conexion
+
+        // Query para contar las publicaciones de todos los emprendimientos de un estudiante
+        $sql = "SELECT COUNT(p.id_publicacion) AS total_publicaciones
+                FROM emprendimiento e
+                INNER JOIN publicacion p ON e.id_emprendimiento = p.id_emprendimiento
+                WHERE e.id_estudiante = ? AND p.est_publicacion = 1"; 
+
+        if($stmt = $con->prepare($sql)){
+            $stmt->bind_param("i", $idEstudiante); 
+            $stmt->execute();
+            $stmt->bind_result($total);
+            $stmt->fetch();
+            $stmt->close();
+            return $total;
+        } else {
+            return 0; 
+        }
+    }
+
+    function cantidadSeguidores($idEstudiante){
+        // Ajusta la ruta a tu archivo de conexión
+        require_once("../../configuracion/conexion.php"); 
+
+        // Query para contar los seguidores de todos los emprendimientos de un estudiante
+        $sql = "SELECT COUNT(s.id_seguimiento) AS total_seguidores
+                FROM seguimiento s
+                INNER JOIN emprendimiento e ON s.id_emprendimiento = e.id_emprendimiento
+                WHERE e.id_estudiante = ? AND s.est_seguimiento = 1"; // est_seguimiento = 1 (Activo)
+
+        if($stmt = $con->prepare($sql)){
+            $stmt->bind_param("i", $idEstudiante); 
+            $stmt->execute();
+            $stmt->bind_result($total);
+            $stmt->fetch();
+            $stmt->close();
+            // $con->close(); // Si usas conexión persistente, no cierres aquí.
+
+            return $total ?? 0; // Retorna 0 si no hay resultados o es NULL
+        } else {
+            // Manejo de error si la preparación falla
+            error_log("Error al preparar la consulta de seguidores: " . $con->error);
+            return 0; 
+        }
+    }
+
+    function cantidadSeguidos($idEstudiante){
+        // Ajusta la ruta a tu archivo de conexión
+        require_once("../../configuracion/conexion.php"); 
+
+        // Query para contar los emprendimientos que está siguiendo el estudiante
+        $sql = "SELECT COUNT(id_seguimiento) AS total_seguidos
+                FROM seguimiento
+                WHERE id_estudiante = ? AND est_seguimiento = 1"; // est_seguimiento = 1 (Activo)
+
+        if($stmt = $con->prepare($sql)){
+            $stmt->bind_param("i", $idEstudiante); 
+            $stmt->execute();
+            $stmt->bind_result($total);
+            $stmt->fetch();
+            $stmt->close();
+            // $con->close(); // Si usas conexión persistente, no cierres aquí.
+
+            return $total ?? 0; // Retorna 0 si no hay resultados o es NULL
+        } else {
+            // Manejo de error si la preparación falla
+            error_log("Error al preparar la consulta de seguidos: " . $con->error);
+            return 0; 
+        }
+    }
 
 
 ?>
