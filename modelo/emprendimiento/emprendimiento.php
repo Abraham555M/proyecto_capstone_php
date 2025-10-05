@@ -55,4 +55,32 @@ function listarEmprendimientos($id_estudiante) {
     mysqli_close($con);
     return $data;
 }
+
+// Gonzalo
+
+function agregarEmprendimiento($idEstudiante, $idCategoria, $nomEmprendimiento, $desEmprendimiento,
+                                $imgPorEmprendimiento, $imgPerEmprendimiento) {
+    global $con;
+
+    $sql = "INSERT INTO emprendimiento 
+                (id_estudiante, id_categoria, nom_emprendimiento, des_emprendimiento, 
+                 img_por_emprendimiento, img_per_emprendimiento, est_emprendimiento)
+            VALUES (?, ?, ?, ?, ?, ?, 1)";
+
+    $stmt = $con->prepare($sql);
+    $stmt->bind_param("iissss", 
+        $idEstudiante,
+        $idCategoria,
+        $nomEmprendimiento,
+        $desEmprendimiento,
+        $imgPorEmprendimiento,
+        $imgPerEmprendimiento
+    );
+
+    if ($stmt->execute()) {
+        return array("status" => "success", "message" => "Emprendimiento creado correctamente");
+    } else {
+        return array("status" => "error", "message" => "Error: " . $stmt->error);
+    }
+}
 ?>
