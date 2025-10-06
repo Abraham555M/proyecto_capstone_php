@@ -198,12 +198,12 @@
         }
     }
 
-    function buscarPublicaciones($idEstudiante, $textoBusqueda){
+    function buscarPublicaciones($idEstudiante, $textoBusqueda, $idCategoria = null) {
     require_once("../../configuracion/conexion.php");
-    
-    // Escapar el texto de búsqueda para prevenir SQL Injection
+
+    $idEstudiante = intval($idEstudiante);
     $textoBusqueda = mysqli_real_escape_string($con, $textoBusqueda);
-    
+
     $sql = "SELECT 
                 p.id_publicacion,
                 e.id_emprendimiento,
@@ -222,8 +222,7 @@
                         AND i2.id_estudiante = $idEstudiante
                         AND i2.id_tipo_interaccion = 1
                         AND i2.est_interaccion = 1
-                    ) THEN 1
-                    ELSE 0
+                    ) THEN 1 ELSE 0
                 END AS dio_like,
 
                 CASE 
@@ -233,8 +232,7 @@
                         WHERE s.id_emprendimiento = e.id_emprendimiento
                         AND s.id_estudiante = $idEstudiante
                         AND s.est_seguimiento = 1
-                    ) THEN 1
-                    ELSE 0
+                    ) THEN 1 ELSE 0
                 END AS siguiendo,
 
                 CASE
@@ -244,8 +242,7 @@
                         WHERE f.id_publicacion = p.id_publicacion
                         AND f.id_estudiante = $idEstudiante
                         AND f.est_favorito = 1
-                    ) THEN 1
-                    ELSE 0
+                    ) THEN 1 ELSE 0
                 END AS es_favorito
 
             FROM publicacion p
@@ -256,8 +253,14 @@
                 AND i.id_tipo_interaccion = 1
                 AND i.est_interaccion = 1
             WHERE p.est_publicacion = 1
-            AND p.tit_publicacion LIKE '%$textoBusqueda%'
-            GROUP BY 
+              AND p.tit_publicacion LIKE '%$textoBusqueda%'";
+
+    // 🔥 Si se pasa una categoría, agregarla al filtro
+    if ($idCategoria !== null && $idCategoria > 0) {
+        $sql .= " AND e.id_categoria = " . intval($idCategoria);
+    }
+
+    $sql .= " GROUP BY 
                 p.id_publicacion,
                 e.id_emprendimiento,
                 e.nom_emprendimiento,
@@ -265,7 +268,7 @@
                 p.tit_publicacion,
                 p.con_publicacion,
                 p.img_publicacion
-            ORDER BY p.fch_publicacion DESC";
+              ORDER BY p.fch_publicacion DESC";
 
     $result = mysqli_query($con, $sql);
 
@@ -274,10 +277,13 @@
         while ($row = mysqli_fetch_assoc($result)) {
             $data[] = $row; 
         }
+    } else {
+        error_log("Error SQL: " . mysqli_error($con));
     }
 
     return $data; 
 }
+
 
 function filtrarPublicacionesPorCategoria($idEstudiante, $idCategoria) {
     require_once("../../configuracion/conexion.php");
