@@ -325,4 +325,34 @@
         return $sexo;
     }
 
+    function obtenerInformacionPerfil($idEstudiante) {
+        require_once("../../configuracion/conexion.php");
+
+        $sql = "SELECT 
+                    e.nom_estudiante AS nombre,
+                    s.nom_sede AS sede
+                FROM estudiante e
+                INNER JOIN sede s ON e.id_sede = s.id_sede
+                WHERE e.id_estudiante = ?";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("i", $idEstudiante);
+        $stmt->execute();
+        $resultado = $stmt->get_result();
+
+        if ($fila = $resultado->fetch_assoc()) {
+            return [
+                "nombre" => $fila["nombre"],
+                "sede" => $fila["sede"],
+            ];
+        } else {
+            return ["error" => "Estudiante no encontrado"];
+        }
+
+        $stmt->close();
+        $con->close();
+    }
+
+
+
 ?>
