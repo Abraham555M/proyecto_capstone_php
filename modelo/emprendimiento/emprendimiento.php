@@ -260,4 +260,33 @@
             return ["error" => $e->getMessage()];
         }
     }
+
+    function obtenerEstudianteDelEmprendimiento($idEmprendimiento) {
+        require_once("../../configuracion/conexion.php");
+
+        $sql = "SELECT 
+                    e.id_estudiante,
+                    CONCAT(e.nom_estudiante, ' ', e.ape_pat_estudiante, ' ', e.ape_mat_estudiante) AS nombre_completo,
+                    s.nom_sede
+                FROM emprendimiento em
+                INNER JOIN estudiante e ON em.id_estudiante = e.id_estudiante
+                INNER JOIN sede s ON e.id_sede = s.id_sede
+                WHERE em.id_emprendimiento = ?";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("i", $idEmprendimiento);
+        $stmt->execute();
+        $resultado = $stmt->get_result();
+
+        if ($fila = $resultado->fetch_assoc()) {
+            return $fila; // Devolvemos todo el array asociativo
+        } else {
+            return null;
+        }
+
+        $stmt->close();
+        $con->close();
+    }
+
+
 ?>
