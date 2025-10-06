@@ -5,6 +5,7 @@ require_once("../../configuracion/conexion.php"); // tu archivo de conexión a B
 
 // Recibir parámetro
 $idEstudiante = isset($_GET['idEstudiante']) ? intval($_GET['idEstudiante']) : 0;
+$baseUrl = isset($_GET['servidorConfig']) ? $_GET['servidorConfig'] : "http://10.0.2.2/proyecto_capstone_php/";
 
 $response = array();
 
@@ -26,6 +27,10 @@ if ($idEstudiante > 0) {
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
+            // ⚡ Concatenar la URL completa
+            if (!empty($row['imagen_url']) && !preg_match('/^http/', $row['imagen_url'])) {
+                $row['imagen_url'] = $baseUrl . $row['imagen_url'];
+            }
             $response[] = $row;
         }
         $stmt->close();
@@ -34,4 +39,3 @@ if ($idEstudiante > 0) {
 
 echo json_encode($response, JSON_UNESCAPED_UNICODE);
 $con->close();
-?>

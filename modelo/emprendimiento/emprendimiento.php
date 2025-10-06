@@ -220,4 +220,44 @@
         mysqli_close($con);
         return $data;
     }
+
+    //gonzalo
+    function agregarEmprendimiento($idEstudiante, $idCategoria, $nomEmprendimiento, $desEmprendimiento, $imgPorEmprendimiento, $imgPerEmprendimiento) {
+    
+        global $con;
+
+        try {
+            $sql = "INSERT INTO emprendimiento 
+                    (id_estudiante, id_categoria, nom_emprendimiento, des_emprendimiento, img_por_emprendimiento, img_per_emprendimiento, est_emprendimiento) 
+                    VALUES (?, ?, ?, ?, ?, ?, 1)";
+            
+            $stmt = $con->prepare($sql);
+            if (!$stmt) {
+                return ["error" => "Error en prepare: " . $con->error];
+            }
+
+            $stmt->bind_param(
+                "iissss",
+                $idEstudiante,
+                $idCategoria,
+                $nomEmprendimiento,
+                $desEmprendimiento,
+                $imgPorEmprendimiento,
+                $imgPerEmprendimiento
+            );
+
+            if ($stmt->execute()) {
+                $idInsertado = $stmt->insert_id;
+                return [
+                    "success" => true,
+                    "message" => "Emprendimiento agregado correctamente",
+                    "id_emprendimiento" => $idInsertado
+                ];
+            } else {
+                return ["error" => "Error al ejecutar: " . $stmt->error];
+            }
+        } catch (Exception $e) {
+            return ["error" => $e->getMessage()];
+        }
+    }
 ?>
