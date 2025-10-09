@@ -5,197 +5,197 @@
     require '../../vendor/autoload.php';
 
     function LoginEstudiante($correo, $password){
-    require_once("../../configuracion/conexion.php");
+        require_once("../../configuracion/conexion.php");
 
-    $data = array("status" => "error", "message" => "No se pudo iniciar sesión");
+        $data = array("status" => "error", "message" => "No se pudo iniciar sesión");
 
-    if ($con) {
-        $sql = "SELECT id_estudiante, nom_estudiante, ape_pat_estudiante, ape_mat_estudiante, 
-                    pas_estudiante, id_tipo_usuario
-                FROM estudiante 
-                WHERE ema_estudiante = ? AND est_estudiante = 1";
+        if ($con) {
+            $sql = "SELECT id_estudiante, nom_estudiante, ape_pat_estudiante, ape_mat_estudiante, 
+                        pas_estudiante, id_tipo_usuario
+                    FROM estudiante 
+                    WHERE ema_estudiante = ? AND est_estudiante = 1";
 
-        if ($stmt = mysqli_prepare($con, $sql)) {
+            if ($stmt = mysqli_prepare($con, $sql)) {
+                mysqli_stmt_bind_param($stmt, "s", $correo);
+                mysqli_stmt_execute($stmt);
+                $result = mysqli_stmt_get_result($stmt);
+
+                if ($row = mysqli_fetch_assoc($result)) {
+                    // ✅ Comparación con hash de contraseña
+                    if (password_verify($password, $row['pas_estudiante'])) {
+                        $data = array(
+                            "status" => "success",
+                            "message" => "Inicio de sesión correcto",
+                            "usuario" => array(
+                                "id_estudiante" => $row['id_estudiante'],
+                                "nombre" => $row['nom_estudiante'],
+                                "apellidos" => $row['ape_pat_estudiante']." ".$row['ape_mat_estudiante'],
+                                "tipo_usuario" => $row['id_tipo_usuario']
+                            )
+                        );
+                    } else {
+                        $data = array(
+                            "status" => "error",
+                            "message" => "La contraseña ingresada es incorrecta"
+                        );
+                    }
+                } else {
+                    $data = array(
+                        "status" => "error",
+                        "message" => "El correo no está registrado"
+                    );
+                }
+
+                mysqli_stmt_close($stmt);
+            } else {
+                $data = array(
+                    "status" => "error",
+                    "message" => "Error al preparar la consulta: " . mysqli_error($con)
+                );
+            }
+        } else {
+            $data = array(
+                "status" => "error",
+                "message" => "Error en la conexión a la BD"
+            );
+        }
+
+        mysqli_close($con);
+        return $data;
+    }
+
+   function EnviarCodigoRecuperacion($correo) {
+        require_once("../../configuracion/conexion.php");
+
+        $data = array("status" => "error", "message" => "No se pudo enviar el código");
+
+        if ($con) {
+            // Verificar si existe el correo
+            $sql = "SELECT id_estudiante FROM estudiante WHERE ema_estudiante = ?";
+            $stmt = mysqli_prepare($con, $sql);
             mysqli_stmt_bind_param($stmt, "s", $correo);
             mysqli_stmt_execute($stmt);
             $result = mysqli_stmt_get_result($stmt);
 
             if ($row = mysqli_fetch_assoc($result)) {
-                // ✅ Comparación con hash de contraseña
-                if (password_verify($password, $row['pas_estudiante'])) {
-                    $data = array(
-                        "status" => "success",
-                        "message" => "Inicio de sesión correcto",
-                        "usuario" => array(
-                            "id_estudiante" => $row['id_estudiante'],
-                            "nombre" => $row['nom_estudiante'],
-                            "apellidos" => $row['ape_pat_estudiante']." ".$row['ape_mat_estudiante'],
-                            "tipo_usuario" => $row['id_tipo_usuario']
-                        )
-                    );
-                } else {
-                    $data = array(
-                        "status" => "error",
-                        "message" => "La contraseña ingresada es incorrecta"
-                    );
+                $idEstudiante = $row['id_estudiante'];
+
+                // Generar un código de 4 dígitos
+                $codigo = rand(1000, 9999);
+
+                // Guardar el código en la BD
+                $sqlUpdate = "UPDATE estudiante 
+                SET cod_estudiante = ?, cod_expira = DATE_ADD(NOW(), INTERVAL 10 MINUTE) 
+                WHERE id_estudiante = ?";
+                $stmtUpdate = mysqli_prepare($con, $sqlUpdate);
+                mysqli_stmt_bind_param($stmtUpdate, "ii", $codigo, $idEstudiante);
+
+                if (mysqli_stmt_execute($stmtUpdate)) {
+                    // Enviar correo con PHPMailer
+                    $mail = new PHPMailer(true);
+
+                    try {
+                        $mail->isSMTP();
+                        $mail->Host = 'smtp.gmail.com';
+                        $mail->SMTPAuth = true;
+                        $mail->Username = 'alexxanderay@gmail.com';
+                        $mail->Password = 'qqcyozqvrldympqq';
+                        $mail->SMTPSecure = 'tls';
+                        $mail->Port = 587;
+
+                        $mail->setFrom('alexxanderay@gmail.com', 'Soporte Proyecto Capstone');
+                        $mail->addAddress($correo);
+
+                        $mail->isHTML(true);
+                        $mail->Subject = 'Codigo de recuperacion';
+                        $mail->Body = "<h2>Recuperación de contraseña</h2>
+                                    <p>Tu código de recuperacion es: <b>$codigo</b></p>
+                                    <p>Si no solicitaste este correo, omitir mensaje.</p>";
+
+                        $mail->send();
+
+                        $data = array("status" => "success", "message" => "Código enviado al correo");
+                    } catch (Exception $e) {
+                        $data = array("status" => "error", "message" => "No se pudo enviar el correo. Error: {$mail->ErrorInfo}");
+                    }
                 }
+                mysqli_stmt_close($stmtUpdate);
             } else {
-                $data = array(
-                    "status" => "error",
-                    "message" => "El correo no está registrado"
-                );
+                $data = array("status" => "error", "message" => "El correo no está registrado");
             }
 
             mysqli_stmt_close($stmt);
+            mysqli_close($con);
         } else {
-            $data = array(
-                "status" => "error",
-                "message" => "Error al preparar la consulta: " . mysqli_error($con)
-            );
-        }
-    } else {
-        $data = array(
-            "status" => "error",
-            "message" => "Error en la conexión a la BD"
-        );
-    }
-
-    mysqli_close($con);
-    return $data;
-}
-
-   function EnviarCodigoRecuperacion($correo) {
-    require_once("../../configuracion/conexion.php");
-
-    $data = array("status" => "error", "message" => "No se pudo enviar el código");
-
-    if ($con) {
-        // Verificar si existe el correo
-        $sql = "SELECT id_estudiante FROM estudiante WHERE ema_estudiante = ?";
-        $stmt = mysqli_prepare($con, $sql);
-        mysqli_stmt_bind_param($stmt, "s", $correo);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-
-        if ($row = mysqli_fetch_assoc($result)) {
-            $idEstudiante = $row['id_estudiante'];
-
-            // Generar un código de 4 dígitos
-            $codigo = rand(1000, 9999);
-
-            // Guardar el código en la BD
-            $sqlUpdate = "UPDATE estudiante 
-              SET cod_estudiante = ?, cod_expira = DATE_ADD(NOW(), INTERVAL 10 MINUTE) 
-              WHERE id_estudiante = ?";
-            $stmtUpdate = mysqli_prepare($con, $sqlUpdate);
-            mysqli_stmt_bind_param($stmtUpdate, "ii", $codigo, $idEstudiante);
-
-            if (mysqli_stmt_execute($stmtUpdate)) {
-                // Enviar correo con PHPMailer
-                $mail = new PHPMailer(true);
-
-                try {
-                    $mail->isSMTP();
-                    $mail->Host = 'smtp.gmail.com';
-                    $mail->SMTPAuth = true;
-                    $mail->Username = 'alexxanderay@gmail.com';
-                    $mail->Password = 'qqcyozqvrldympqq';
-                    $mail->SMTPSecure = 'tls';
-                    $mail->Port = 587;
-
-                    $mail->setFrom('alexxanderay@gmail.com', 'Soporte Proyecto Capstone');
-                    $mail->addAddress($correo);
-
-                    $mail->isHTML(true);
-                    $mail->Subject = 'Codigo de recuperacion';
-                    $mail->Body = "<h2>Recuperación de contraseña</h2>
-                                   <p>Tu código de recuperacion es: <b>$codigo</b></p>
-                                   <p>Si no solicitaste este correo, omitir mensaje.</p>";
-
-                    $mail->send();
-
-                    $data = array("status" => "success", "message" => "Código enviado al correo");
-                } catch (Exception $e) {
-                    $data = array("status" => "error", "message" => "No se pudo enviar el correo. Error: {$mail->ErrorInfo}");
-                }
-            }
-            mysqli_stmt_close($stmtUpdate);
-        } else {
-            $data = array("status" => "error", "message" => "El correo no está registrado");
+            $data = array("status" => "error", "message" => "Error en la conexión a la BD");
         }
 
-        mysqli_stmt_close($stmt);
-        mysqli_close($con);
-    } else {
-        $data = array("status" => "error", "message" => "Error en la conexión a la BD");
+        return $data;
     }
-
-    return $data;
-}
 
 
     function ValidarCodigoRecuperacion($correo, $codigo) {
-    require_once("../../configuracion/conexion.php");
+        require_once("../../configuracion/conexion.php");
 
-    $data = ["status" => "error", "message" => "Código inválido o expirado"];
+        $data = ["status" => "error", "message" => "Código inválido o expirado"];
 
-    if ($con) {
-        $sql = "SELECT cod_estudiante, cod_expira 
-                FROM estudiante 
-                WHERE ema_estudiante = ?";
-        $stmt = mysqli_prepare($con, $sql);
-        mysqli_stmt_bind_param($stmt, "s", $correo);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+        if ($con) {
+            $sql = "SELECT cod_estudiante, cod_expira 
+                    FROM estudiante 
+                    WHERE ema_estudiante = ?";
+            $stmt = mysqli_prepare($con, $sql);
+            mysqli_stmt_bind_param($stmt, "s", $correo);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
 
-        if ($row = mysqli_fetch_assoc($result)) {
-            $codigoBD = $row['cod_estudiante'];
-            $expira   = $row['cod_expira'];
+            if ($row = mysqli_fetch_assoc($result)) {
+                $codigoBD = $row['cod_estudiante'];
+                $expira   = $row['cod_expira'];
 
-            // Verificar código y expiración
-            if ((string)$codigoBD === (string)$codigo) {
-                if ($expira && strtotime($expira) > time()) {
-                    $data = ["status" => "success", "message" => "Código válido"];
+                // Verificar código y expiración
+                if ((string)$codigoBD === (string)$codigo) {
+                    if ($expira && strtotime($expira) > time()) {
+                        $data = ["status" => "success", "message" => "Código válido"];
 
-                    // 🔹 Borrar el código para que solo se use una vez
-                    $sqlBorrar = "UPDATE estudiante 
-                                  SET cod_estudiante = NULL, cod_expira = NULL 
-                                  WHERE ema_estudiante = ?";
-                    $stmtBorrar = mysqli_prepare($con, $sqlBorrar);
-                    mysqli_stmt_bind_param($stmtBorrar, "s", $correo);
-                    mysqli_stmt_execute($stmtBorrar);
-                    mysqli_stmt_close($stmtBorrar);
-                } else {
-                    $data = ["status" => "error", "message" => "El código ha expirado"];
+                        // 🔹 Borrar el código para que solo se use una vez
+                        $sqlBorrar = "UPDATE estudiante 
+                                    SET cod_estudiante = NULL, cod_expira = NULL 
+                                    WHERE ema_estudiante = ?";
+                        $stmtBorrar = mysqli_prepare($con, $sqlBorrar);
+                        mysqli_stmt_bind_param($stmtBorrar, "s", $correo);
+                        mysqli_stmt_execute($stmtBorrar);
+                        mysqli_stmt_close($stmtBorrar);
+                    } else {
+                        $data = ["status" => "error", "message" => "El código ha expirado"];
+                    }
                 }
             }
+
+            mysqli_stmt_close($stmt);
+            mysqli_close($con);
+        } else {
+            $data = ["status" => "error", "message" => "Error en la conexión a la BD"];
         }
 
-        mysqli_stmt_close($stmt);
-        mysqli_close($con);
-    } else {
-        $data = ["status" => "error", "message" => "Error en la conexión a la BD"];
+        return $data;
     }
-
-    return $data;
-}
 
     function CambiarPassword($correo, $newPass) {
-    require_once("../../configuracion/conexion.php");
+        require_once("../../configuracion/conexion.php");
 
-    // Cifrar la nueva contraseña
-    $passwordHash = password_hash($newPass, PASSWORD_BCRYPT);
+        // Cifrar la nueva contraseña
+        $passwordHash = password_hash($newPass, PASSWORD_BCRYPT);
 
-    $sql = "UPDATE estudiante SET pas_estudiante=? WHERE ema_estudiante=?";
-    $stmt = mysqli_prepare($con, $sql);
-    mysqli_stmt_bind_param($stmt, "ss", $passwordHash, $correo);
+        $sql = "UPDATE estudiante SET pas_estudiante=? WHERE ema_estudiante=?";
+        $stmt = mysqli_prepare($con, $sql);
+        mysqli_stmt_bind_param($stmt, "ss", $passwordHash, $correo);
 
-    if (mysqli_stmt_execute($stmt)) {
-        return ["status"=>"success","message"=>"Contraseña actualizada correctamente"];
-    } else {
-        return ["status"=>"error","message"=>"Error al actualizar la contraseña"];
+        if (mysqli_stmt_execute($stmt)) {
+            return ["status"=>"success","message"=>"Contraseña actualizada correctamente"];
+        } else {
+            return ["status"=>"error","message"=>"Error al actualizar la contraseña"];
+        }
     }
-}
 
     function enviarCodigo($correo, $nombres) {
         require_once("../../configuracion/conexion.php");
@@ -235,8 +235,8 @@
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 
-            $mail->setFrom('gohecaze@gmail.com', 'TuApp');
-            $mail->addAddress($correo, $nombres);
+                $mail->setFrom('gohecaze@gmail.com', 'TuApp');
+                $mail->addAddress($correo, $nombres);
 
             $mail->isHTML(true);
             $mail->Subject = 'Código de verificación - TuApp';
