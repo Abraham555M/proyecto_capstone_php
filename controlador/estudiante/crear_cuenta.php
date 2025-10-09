@@ -1,8 +1,4 @@
 <?php
-require_once "../../configuracion/conexion.php";
-require_once "../../modelo/estudiante/estudiante.php";
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombres    = $_POST['nombres'] ?? '';
     $apePat     = $_POST['apePat'] ?? '';
     $apeMat     = $_POST['apeMat'] ?? '';
@@ -13,7 +9,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sede       = $_POST['sede'] ?? '';
     $codigo     = $_POST['codigo'] ?? '';
 
-    $resultado = crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede, $codigo);
+    require_once "../../modelo/estudiante/estudiante.php";
+
+   
+    $resultado = crearCuenta($nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede, $codigo);
 
     echo json_encode($resultado);
-}
+?>
