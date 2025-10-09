@@ -197,24 +197,41 @@
     }
 }
 
-    // Gonzalo
-    function crearCuenta($con, $nombres, $apePat, $apeMat, $correo, $contrasena, $celular, $sexo, $sede) {
+    function enviarCodigo($correo, $nombres) {
         require_once("../../configuracion/conexion.php");
 
-        // Cifrar la contraseña
-        $passwordHash = password_hash($contrasena, PASSWORD_BCRYPT);
-
-        // Generar código de verificación de 4 dígitos
         $codigo = rand(1000, 9999);
+        $expira = date("Y-m-d H:i:s", strtotime("+10 minutes"));
 
-        // ======= Enviar correo con PHPMailer =======
+        // ✅ Verificar si ya existe un registro con ese correo
+        $sqlCheck = "SELECT id_estudiante FROM estudiante WHERE ema_estudiante = ?";
+        $stmtCheck = $con->prepare($sqlCheck);
+        $stmtCheck->bind_param("s", $correo);
+        $stmtCheck->execute();
+        $result = $stmtCheck->get_result();
+
+        if ($result->num_rows > 0) {
+            // 📌 Si ya existe, solo actualizar código y expiración
+            $sqlUpdate = "UPDATE estudiante SET cod_estudiante = ?, cod_expira = ?, est_estudiante = 0 WHERE ema_estudiante = ?";
+            $stmtUp = $con->prepare($sqlUpdate);
+            $stmtUp->bind_param("sss", $codigo, $expira, $correo);
+            $stmtUp->execute();
+        } else {
+            // 🆕 Si no existe, insertar registro vacío con código
+            $sqlInsert = "INSERT INTO estudiante (ema_estudiante, cod_estudiante, cod_expira, est_estudiante) VALUES (?, ?, ?, 0)";
+            $stmtInsert = $con->prepare($sqlInsert);
+            $stmtInsert->bind_param("sss", $correo, $codigo, $expira);
+            $stmtInsert->execute();
+        }
+
+        // ✉️ Enviar correo
         $mail = new PHPMailer(true);
         try {
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'gohecaze@gmail.com'; // tu Gmail
-            $mail->Password   = 'tgld ngvj dlsk abll';
+            $mail->Username   = 'gohecaze@gmail.com';
+            $mail->Password   = 'tgld ngvj dlsk abll'; // ⚠️ contraseña de aplicación
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 
@@ -223,35 +240,101 @@
 
             $mail->isHTML(true);
             $mail->Subject = 'Código de verificación - TuApp';
-            $mail->Body    = "Hola <b>$nombres</b>,<br><br>Tu código de verificación es: <b>$codigo</b><br><br>Por favor ingrésalo en la aplicación para activar tu cuenta.";
+            $mail->Body = "
+                Hola <b>$nombres</b>,<br><br>
+                Tu código de verificación es: <b>$codigo</b><br><br>
+                Este código expirará en 10 minutos.
+            ";
 
             $mail->send();
+            return ["status" => "ok", "msg" => "Código enviado al correo"];
         } catch (Exception $e) {
-            return ["status" => "error", "msg" => "No se pudo enviar el correo: {$mail->ErrorInfo}"];
+            return ["status" => "error", "msg" => "No se pudo enviar el correo"];
         }
+    }
 
-        // ======= Guardar datos en BD =======
-        $sql = "INSERT INTO estudiante 
-            (id_sexo, id_sede, id_tipo_usuario, nom_estudiante, ape_pat_estudiante, ape_mat_estudiante, fch_reg_estudiante, est_estudiante, ema_estudiante, pas_estudiante, cod_estudiante) 
-            VALUES (?, ?, 1, ?, ?, ?, NOW(), 1, ?, ?, ?)";
+    function verificarCodigoYRegistrar($codigo, $correo, $nombres, $apePat, $apeMat, $contrasena, $celular, $id_sexo, $id_sede) {
+        require_once("../../configuracion/conexion.php");
+        $fecha_reg  = date("Y-m-d H:i:s");
+        $id_tipo_usuario = 1; // por defecto
 
-        $stmt = $con->prepare($sql);
+        try {
+            // Paso 1: Buscar el registro temporal
+            $sql = "SELECT cod_estudiante, cod_expira FROM estudiante WHERE ema_estudiante = ?";
+            $stmt = $con->prepare($sql);
+            $stmt->bind_param("s", $correo);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
 
-        if ($stmt === false) {
-            return ["status" => "error", "msg" => $con->error];
-        }
+            if (!$row) {
+                return ["status" => "error", "msg" => "No se encontró el correo"];
+            }
 
-        // Vincular parámetros dinámicos
-        $stmt->bind_param("iissssss", $sexo, $sede, $nombres, $apePat, $apeMat, $correo, $passwordHash, $codigo);
+            $codigo_bd = $row['cod_estudiante'];
+            $codigo_expira = $row['cod_expira'];
 
-        if ($stmt->execute()) {
+            // Paso 2: Validar código
+            $ahora = new DateTime();
+            $expira = new DateTime($codigo_expira);
+
+            if ($codigo != $codigo_bd) {
+                return ["status" => "codigo_invalido", "msg" => "Código incorrecto"];
+            }
+
+            if ($ahora > $expira) {
+                return ["status" => "codigo_expirado", "msg" => "El código ha expirado"];
+            }
+
+            // Paso 3: Actualizar registro
+            $passwordHash = password_hash($contrasena, PASSWORD_BCRYPT);
+            $sqlUpdate = "UPDATE estudiante SET 
+                id_sexo = ?, 
+                id_sede = ?, 
+                id_tipo_usuario = ?, 
+                nom_estudiante = ?, 
+                ape_pat_estudiante = ?, 
+                ape_mat_estudiante = ?, 
+                fch_reg_estudiante = ?, 
+                est_estudiante = 1,
+                tel_estudiante = ?, 
+                pas_estudiante = ?
+            WHERE ema_estudiante = ?";
+            $stmtUp = $con->prepare($sqlUpdate);
+            $stmtUp->bind_param(
+                "iiisssssss",
+                $id_sexo,
+                $id_sede,
+                $id_tipo_usuario,
+                $nombres,
+                $apePat,
+                $apeMat,
+                $fecha_reg,
+                $celular,
+                $passwordHash,
+                $correo
+            );
+            $stmtUp->execute();
+
+            // Paso 4: Obtener los datos completos del usuario actualizado
+            $sqlSelect = "SELECT id_estudiante, nom_estudiante, 
+                            CONCAT(ape_pat_estudiante, ' ', ape_mat_estudiante) AS apellidos, 
+                            id_tipo_usuario 
+                        FROM estudiante WHERE ema_estudiante = ?";
+            $stmtSel = $con->prepare($sqlSelect);
+            $stmtSel->bind_param("s", $correo);
+            $stmtSel->execute();
+            $resultSel = $stmtSel->get_result();
+            $user = $resultSel->fetch_assoc();
+
             return [
                 "status" => "ok",
-                "msg" => "Cuenta creada correctamente. Código enviado a tu correo.",
-                "codigo" => $codigo
+                "msg" => "Cuenta creada correctamente",
+                "user" => $user
             ];
-        } else {
-            return ["status" => "error", "msg" => $stmt->error];
+
+        } catch (Exception $e) {
+            return ["status" => "error", "msg" => $e->getMessage()];
         }
     }
 
