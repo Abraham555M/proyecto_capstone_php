@@ -3,6 +3,7 @@ include("../../configuracion/conexion.php");
 
 $response = array("success" => false, "message" => "");
 
+// Validar campos obligatorios
 if (isset($_POST['id_emprendimiento'], $_POST['id_tipo_publicacion'], $_POST['tit_publicacion'], $_POST['con_publicacion'], $_POST['est_publicacion'])) {
     $id_emprendimiento = $_POST['id_emprendimiento'];
     $id_tipo_publicacion = $_POST['id_tipo_publicacion'];
@@ -11,25 +12,13 @@ if (isset($_POST['id_emprendimiento'], $_POST['id_tipo_publicacion'], $_POST['ti
     $estado = $_POST['est_publicacion'];
     $fecha = date("Y-m-d H:i:s");
 
-    // Subida de imagen
-    $img_name = null;
-    if (isset($_FILES['img_publicacion'])) {
-        $nombreImagen = uniqid() . ".jpg";
-        $carpeta = "../../uploads/";
-        $rutaDestino = $carpeta . $nombreImagen;
-
-        // Ruta que se guardará en la base de datos
-        $img_name = "uploads/" . $nombreImagen;
-         if (move_uploaded_file($_FILES['img_publicacion']['tmp_name'], $rutaDestino)) {
-            // Imagen subida correctamente
-        } else {
-            $img_name = null;
-        }
-    }
+    // Imagen: ahora viene como URL desde Firebase
+    $img_url = $_POST['img_publicacion'] ?? null;
 
     // Insertar publicación principal
-    $sql = "INSERT INTO publicacion (id_emprendimiento, id_tipo_publicacion, tit_publicacion, con_publicacion, img_publicacion, fch_publicacion, est_publicacion)
-            VALUES ('$id_emprendimiento', '$id_tipo_publicacion', '$titulo', '$contenido', '$img_name', '$fecha', '$estado')";
+    $sql = "INSERT INTO publicacion 
+            (id_emprendimiento, id_tipo_publicacion, tit_publicacion, con_publicacion, img_publicacion, fch_publicacion, est_publicacion)
+            VALUES ('$id_emprendimiento', '$id_tipo_publicacion', '$titulo', '$contenido', '$img_url', '$fecha', '$estado')";
 
     if (mysqli_query($con, $sql)) {
         $id_publicacion = mysqli_insert_id($con);
@@ -75,6 +64,7 @@ if (isset($_POST['id_emprendimiento'], $_POST['id_tipo_publicacion'], $_POST['ti
     } else {
         $response["message"] = "Error al insertar publicación: " . mysqli_error($con);
     }
+
 } else {
     $response["message"] = "Faltan datos obligatorios";
 }

@@ -18,44 +18,15 @@ if ($idEstudiante <= 0 || $idCategoria <= 0 || empty($nomEmprendimiento)) {
     exit;
 }
 
-// 3. Variables para imágenes
-$imgPorEmprendimiento = null;
-$imgPerEmprendimiento = null;
+// 3. Recibir URLs de Firebase (en vez de archivos)
+$imgPorEmprendimiento = isset($_POST['img_por_emprendimiento']) ? trim($_POST['img_por_emprendimiento']) : "";
+$imgPerEmprendimiento = isset($_POST['img_per_emprendimiento']) ? trim($_POST['img_per_emprendimiento']) : "";
 
-// Carpeta donde guardar las imágenes
-$uploadDir = "../../uploads/emprendimientos/";
-
-if (!file_exists($uploadDir)) {
-    mkdir($uploadDir, 0777, true);
-}
-
-// 4. Subir imagen de portada
-if (isset($_FILES['img_por_emprendimiento']) && $_FILES['img_por_emprendimiento']['error'] === UPLOAD_ERR_OK) {
-    $extension = pathinfo($_FILES['img_por_emprendimiento']['name'], PATHINFO_EXTENSION);
-    $imgName = uniqid("por_") . "." . $extension;
-    $targetFile = $uploadDir . $imgName;
-
-    if (move_uploaded_file($_FILES['img_por_emprendimiento']['tmp_name'], $targetFile)) {
-        $imgPorEmprendimiento = "uploads/emprendimientos/" . $imgName; // ruta relativa que guardarás en BD
-    }
-}
-
-// 5. Subir imagen de perfil
-if (isset($_FILES['img_per_emprendimiento']) && $_FILES['img_per_emprendimiento']['error'] === UPLOAD_ERR_OK) {
-    $extension = pathinfo($_FILES['img_per_emprendimiento']['name'], PATHINFO_EXTENSION);
-    $imgName = uniqid("per_") . "." . $extension;
-    $targetFile = $uploadDir . $imgName;
-
-    if (move_uploaded_file($_FILES['img_per_emprendimiento']['tmp_name'], $targetFile)) {
-        $imgPerEmprendimiento = "uploads/emprendimientos/" . $imgName;
-    }
-}
-
-// 6. Conexión a BD y modelo
+// 4. Conexión a BD y modelo
 require_once("../../configuracion/conexion.php");
 require_once("../../modelo/emprendimiento/emprendimiento.php");
 
-// 7. Insertar en BD
+// 5. Insertar en BD
 $rpta = agregarEmprendimiento(
     $idEstudiante,
     $idCategoria,
@@ -65,6 +36,5 @@ $rpta = agregarEmprendimiento(
     $imgPerEmprendimiento
 );
 
-// 8. Respuesta en JSON
+// 6. Respuesta en JSON
 echo json_encode($rpta, JSON_UNESCAPED_UNICODE);
-?>
