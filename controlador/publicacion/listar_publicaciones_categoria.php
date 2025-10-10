@@ -13,7 +13,8 @@ $query = "SELECT p.id_publicacion AS id,
           INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
           WHERE e.id_estudiante = '$id_estudiante'
           AND e.id_categoria = '$id_categoria'
-          AND p.id_emprendimiento = '$id_emprendimiento'";
+          AND p.id_emprendimiento = '$id_emprendimiento'
+          AND p.est_publicacion = 1";
 
 $result = $con->query($query);
 
