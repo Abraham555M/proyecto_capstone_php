@@ -91,5 +91,41 @@
             }
         }
    }
+   
+   function eliminarComentario($idComentario, $idEstudiante) {
+    require_once("../../configuracion/conexion.php");
+
+    $data = array("status" => "error", "message" => "No se pudo eliminar el comentario");
+
+    if ($con) {
+        // IMPORTANTE: Validar que el comentario pertenezca al estudiante
+        $sql = "UPDATE comentario 
+                SET est_comentario = 0 
+                WHERE id_comentario = ? 
+                AND id_estudiante = ?";
+
+        if ($stmt = mysqli_prepare($con, $sql)) {
+            mysqli_stmt_bind_param($stmt, "ii", $idComentario, $idEstudiante);
+
+            if (mysqli_stmt_execute($stmt)) {
+                if (mysqli_stmt_affected_rows($stmt) > 0) {
+                    $data = array(
+                        "status" => "success",
+                        "message" => "Comentario eliminado correctamente"
+                    );
+                } else {
+                    $data = array(
+                        "status" => "error",
+                        "message" => "No tienes permiso para eliminar este comentario"
+                    );
+                }
+            }
+            mysqli_stmt_close($stmt);
+        }
+    }
+
+    mysqli_close($con);
+    return $data;
+}
 
 ?>
