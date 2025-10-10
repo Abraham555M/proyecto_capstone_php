@@ -438,6 +438,57 @@
         $con->close();
     }
 
+            function obtenerInformacionEstudiante($idEstudiante) {
+            require_once("../../configuracion/conexion.php");
+            global $con;
 
+            $query = "SELECT 
+                        e.id_estudiante,
+                        e.nom_estudiante,
+                        e.ape_pat_estudiante,
+                        e.ape_mat_estudiante,
+                        e.ema_estudiante,
+                        e.tel_estudiante,
+                        s.nom_sede AS sede,
+                        sx.nom_sexo AS sexo
+                    FROM estudiante e
+                    LEFT JOIN sede s ON e.id_sede = s.id_sede
+                    LEFT JOIN sexo sx ON e.id_sexo = sx.id_sexo
+                    WHERE e.id_estudiante = ?";
+
+            $stmt = $con->prepare($query);
+            $stmt->bind_param("i", $idEstudiante);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($result->num_rows > 0) {
+                return $result->fetch_assoc();
+            }
+
+            return null;
+        }
+
+
+            function actualizarPerfilEstudiante($idEstudiante, $nombre, $apePat, $apeMat, $correo, $telefono, $sexo, $sede) {
+        global $con;
+
+        $query = "UPDATE estudiante 
+                SET nom_estudiante = ?, 
+                    ape_pat_estudiante = ?, 
+                    ape_mat_estudiante = ?, 
+                    ema_estudiante = ?, 
+                    tel_estudiante = ?, 
+                    id_sexo = (SELECT id_sexo FROM sexo WHERE nom_sexo = ? LIMIT 1),
+                    id_sede = (SELECT id_sede FROM sede WHERE nom_sede = ? LIMIT 1)
+                WHERE id_estudiante = ?";
+
+        $stmt = $con->prepare($query);
+        if (!$stmt) return false;
+
+        $stmt->bind_param("sssssssi", $nombre, $apePat, $apeMat, $correo, $telefono, $sexo, $sede, $idEstudiante);
+        $ok = $stmt->execute();
+        $stmt->close();
+        return $ok;
+    }
 
 ?>
