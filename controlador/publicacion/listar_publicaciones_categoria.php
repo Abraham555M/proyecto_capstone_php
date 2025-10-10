@@ -20,9 +20,7 @@ $result = $con->query($query);
 $publicaciones = array();
 
 while ($row = $result->fetch_assoc()) {
-    if (strpos($row['imagen_url'], 'http') === false) {
-        $row['imagen_url'] = "uploads/" . $row['imagen_url'];
-    }
+    // Con Firebase, la URL ya es completa, no se modifica
     $publicaciones[] = $row;
 }
 
