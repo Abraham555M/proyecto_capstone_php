@@ -51,4 +51,30 @@
             }
         }
     }
+
+    function obtenerCantidadSeguidores($idEmprendedor) {
+        require_once("../../configuracion/conexion.php"); // tu conexión MySQLi (variable $con)
+
+        $sql = "SELECT COUNT(s.id_seguimiento) AS total_seguidores
+                FROM seguimiento s
+                INNER JOIN emprendimiento e ON s.id_emprendimiento = e.id_emprendimiento
+                WHERE e.id_estudiante = ?";
+
+        if ($stmt = $con->prepare($sql)) {
+            $stmt->bind_param("i", $idEmprendedor);  // i = integer
+            $stmt->execute();
+            $resultado = $stmt->get_result()->fetch_assoc();
+
+            $stmt->close();
+
+            if ($resultado) {
+                return $resultado['total_seguidores'];
+            } else {
+                return 0;
+            }
+        } else {
+            error_log("Error en prepare: " . $con->error);
+            return 0;
+        }
+    }
 ?>

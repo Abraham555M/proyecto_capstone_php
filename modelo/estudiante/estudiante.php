@@ -413,7 +413,8 @@
 
         $sql = "SELECT 
                     e.nom_estudiante AS nombre,
-                    s.nom_sede AS sede
+                    s.nom_sede AS sede,
+                    e.tel_estudiante AS telefono
                 FROM estudiante e
                 INNER JOIN sede s ON e.id_sede = s.id_sede
                 WHERE e.id_estudiante = ?";
@@ -427,6 +428,7 @@
             return [
                 "nombre" => $fila["nombre"],
                 "sede" => $fila["sede"],
+                "telefono" => $fila["telefono"],
             ];
         } else {
             return ["error" => "Estudiante no encontrado"];
