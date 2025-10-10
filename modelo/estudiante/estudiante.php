@@ -412,7 +412,7 @@
         require_once("../../configuracion/conexion.php");
 
         $sql = "SELECT 
-                    e.nom_estudiante AS nombre,
+                    CONCAT(e.nom_estudiante, ' ', e.ape_pat_estudiante, ' ', e.ape_mat_estudiante) AS nombre,
                     s.nom_sede AS sede,
                     e.tel_estudiante AS telefono
                 FROM estudiante e
