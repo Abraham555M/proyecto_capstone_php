@@ -267,7 +267,8 @@
         $sql = "SELECT 
                     e.id_estudiante,
                     CONCAT(e.nom_estudiante, ' ', e.ape_pat_estudiante, ' ', e.ape_mat_estudiante) AS nombre_completo,
-                    s.nom_sede
+                    s.nom_sede,
+                    e.tel_estudiante
                 FROM emprendimiento em
                 INNER JOIN estudiante e ON em.id_estudiante = e.id_estudiante
                 INNER JOIN sede s ON e.id_sede = s.id_sede

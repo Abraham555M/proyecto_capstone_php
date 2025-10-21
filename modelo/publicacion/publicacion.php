@@ -4,6 +4,7 @@
         
         $sql = "SELECT 
                     p.id_publicacion,
+                    p.id_tipo_publicacion,
                     e.id_emprendimiento,
                     e.nom_emprendimiento,
                     e.img_per_emprendimiento,
@@ -12,7 +13,6 @@
                     p.img_publicacion,
                     COUNT(i.id_interaccion) AS total_me_gusta,
 
-                    -- ¿Ya le dio like este estudiante?
                     CASE 
                         WHEN EXISTS (
                             SELECT 1
@@ -21,11 +21,9 @@
                             AND i2.id_estudiante = $idEstudiante
                             AND i2.id_tipo_interaccion = 1
                             AND i2.est_interaccion = 1
-                        ) THEN 1
-                        ELSE 0
+                        ) THEN 1 ELSE 0
                     END AS dio_like,
 
-                    -- ¿Ya sigue este estudiante al emprendimiento?
                     CASE 
                         WHEN EXISTS (
                             SELECT 1
@@ -33,11 +31,9 @@
                             WHERE s.id_emprendimiento = e.id_emprendimiento
                             AND s.id_estudiante = $idEstudiante
                             AND s.est_seguimiento = 1
-                        ) THEN 1
-                        ELSE 0
+                        ) THEN 1 ELSE 0
                     END AS siguiendo,
 
-                    -- ¿Ya lo marcó como favorito?
                     CASE
                         WHEN EXISTS (
                             SELECT 1
@@ -45,34 +41,90 @@
                             WHERE f.id_publicacion = p.id_publicacion
                             AND f.id_estudiante = $idEstudiante
                             AND f.est_favorito = 1
-                        ) THEN 1
-                        ELSE 0
-                    END AS es_favorito
+                        ) THEN 1 ELSE 0
+                    END AS es_favorito,
+
+                    -- Campos específicos según tipo_publicacion
+                    prod.prc_producto,
+                    prod.stk_producto,
+                    prom.dsc_promocion,
+                    prom.fch_ini_promocion,
+                    prom.fch_fin_promocion,
+                    ev.fch_evento,
+                    ev.lgr_evento
 
                 FROM publicacion p
-                INNER JOIN emprendimiento e 
-                    ON p.id_emprendimiento = e.id_emprendimiento
+                INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
                 LEFT JOIN interaccion i 
                     ON i.id_publicacion = p.id_publicacion 
                     AND i.id_tipo_interaccion = 1
                     AND i.est_interaccion = 1
+                LEFT JOIN producto prod ON p.id_publicacion = prod.id_publicacion AND p.id_tipo_publicacion = 1 AND prod.est_producto = 1
+                LEFT JOIN promocion prom ON p.id_publicacion = prom.id_publicacion AND p.id_tipo_publicacion = 2 AND prom.est_promocion = 1
+                LEFT JOIN evento ev ON p.id_publicacion = ev.id_publicacion AND p.id_tipo_publicacion = 3 AND ev.est_evento = 1
                 WHERE p.est_publicacion = 1
                 GROUP BY 
                     p.id_publicacion,
+                    p.id_tipo_publicacion,
                     e.id_emprendimiento,
                     e.nom_emprendimiento,
                     e.img_per_emprendimiento,
                     p.tit_publicacion,
                     p.con_publicacion,
-                    p.img_publicacion
+                    p.img_publicacion,
+                    prod.prc_producto,
+                    prod.stk_producto,
+                    prom.dsc_promocion,
+                    prom.fch_ini_promocion,
+                    prom.fch_fin_promocion,
+                    ev.fch_evento,
+                    ev.lgr_evento
                 ORDER BY p.fch_publicacion DESC";
 
         $result = mysqli_query($con, $sql);
-
         $data = [];
+
         if ($result) {
             while ($row = mysqli_fetch_assoc($result)) {
-                $data[] = $row; 
+                $dataItem = [
+                    "publicacion" => [
+                        "id" => $row["id_publicacion"],
+                        "titulo" => $row["tit_publicacion"],
+                        "contenido" => $row["con_publicacion"],
+                        "imagen" => $row["img_publicacion"],
+                        "likes" => (int)$row["total_me_gusta"],
+                        "es_favorito" => (bool)$row["es_favorito"],
+                        "dio_like" => (bool)$row["dio_like"],
+                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                    ],
+                    "emprendimiento" => [
+                        "id" => $row["id_emprendimiento"],
+                        "nombre" => $row["nom_emprendimiento"],
+                        "imagen_perfil" => $row["img_per_emprendimiento"],
+                        "siguiendo" => (bool)$row["siguiendo"]
+                    ]
+                ];
+
+                // Agregar datos según tipo_publicacion
+                if ($row["id_tipo_publicacion"] == 1) { // Producto
+                    $dataItem["producto"] = [
+                        "precio" => $row["prc_producto"],
+                        "stock" => $row["stk_producto"]
+                    ];
+                } elseif ($row["id_tipo_publicacion"] == 2) { // Promoción
+                    $dataItem["promocion"] = [
+                        "descripcion" => $row["dsc_promocion"],
+                        "fecha_inicio" => $row["fch_ini_promocion"],
+                        "fecha_fin" => $row["fch_fin_promocion"]
+                    ];
+                } elseif ($row["id_tipo_publicacion"] == 3) { // Evento
+                    $dataItem["evento"] = [
+                        "fecha" => $row["fch_evento"],
+                        "lugar" => $row["lgr_evento"]
+                    ];
+                }
+
+                $data[] = $dataItem;
             }
         }
 
@@ -90,7 +142,7 @@
                         c.id_comentario,
                         c.con_comentario,
                         c.fch_comentario,
-                        c.id_estudiante,  -- 👈 Necesario para saber quién lo publicó
+                        c.id_estudiante,  
                         e.nom_estudiante,
                         e.ape_pat_estudiante,
                         e.ape_mat_estudiante,
@@ -213,169 +265,287 @@
     }
 
     function buscarPublicaciones($idEstudiante, $textoBusqueda, $idCategoria = null) {
-    require_once("../../configuracion/conexion.php");
+        require_once("../../configuracion/conexion.php");
 
-    $idEstudiante = intval($idEstudiante);
-    $textoBusqueda = mysqli_real_escape_string($con, $textoBusqueda);
+        $idEstudiante = intval($idEstudiante);
+        $textoBusqueda = mysqli_real_escape_string($con, $textoBusqueda);
 
-    $sql = "SELECT 
-                p.id_publicacion,
-                e.id_emprendimiento,
-                e.nom_emprendimiento,
-                e.img_per_emprendimiento,
-                p.tit_publicacion,
-                p.con_publicacion,
-                p.img_publicacion,
-                COUNT(i.id_interaccion) AS total_me_gusta,
+        $sql = "SELECT 
+                    p.id_publicacion,
+                    p.id_tipo_publicacion,
+                    e.id_emprendimiento,
+                    e.nom_emprendimiento,
+                    e.img_per_emprendimiento,
+                    p.tit_publicacion,
+                    p.con_publicacion,
+                    p.img_publicacion,
+                    COUNT(i.id_interaccion) AS total_me_gusta,
 
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM interaccion i2
-                        WHERE i2.id_publicacion = p.id_publicacion
-                        AND i2.id_estudiante = $idEstudiante
-                        AND i2.id_tipo_interaccion = 1
-                        AND i2.est_interaccion = 1
-                    ) THEN 1 ELSE 0
-                END AS dio_like,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM interaccion i2
+                            WHERE i2.id_publicacion = p.id_publicacion
+                            AND i2.id_estudiante = $idEstudiante
+                            AND i2.id_tipo_interaccion = 1
+                            AND i2.est_interaccion = 1
+                        ) THEN 1 ELSE 0
+                    END AS dio_like,
 
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM seguimiento s
-                        WHERE s.id_emprendimiento = e.id_emprendimiento
-                        AND s.id_estudiante = $idEstudiante
-                        AND s.est_seguimiento = 1
-                    ) THEN 1 ELSE 0
-                END AS siguiendo,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM seguimiento s
+                            WHERE s.id_emprendimiento = e.id_emprendimiento
+                            AND s.id_estudiante = $idEstudiante
+                            AND s.est_seguimiento = 1
+                        ) THEN 1 ELSE 0
+                    END AS siguiendo,
 
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM favorito f
-                        WHERE f.id_publicacion = p.id_publicacion
-                        AND f.id_estudiante = $idEstudiante
-                        AND f.est_favorito = 1
-                    ) THEN 1 ELSE 0
-                END AS es_favorito
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM favorito f
+                            WHERE f.id_publicacion = p.id_publicacion
+                            AND f.id_estudiante = $idEstudiante
+                            AND f.est_favorito = 1
+                        ) THEN 1 ELSE 0
+                    END AS es_favorito,
 
-            FROM publicacion p
-            INNER JOIN emprendimiento e 
-                ON p.id_emprendimiento = e.id_emprendimiento
-            LEFT JOIN interaccion i 
-                ON i.id_publicacion = p.id_publicacion 
-                AND i.id_tipo_interaccion = 1
-                AND i.est_interaccion = 1
-            WHERE p.est_publicacion = 1
-              AND p.tit_publicacion LIKE '%$textoBusqueda%'";
+                    -- Campos específicos según tipo de publicación
+                    prod.prc_producto,
+                    prod.stk_producto,
+                    prom.dsc_promocion,
+                    prom.fch_ini_promocion,
+                    prom.fch_fin_promocion,
+                    ev.fch_evento,
+                    ev.lgr_evento
 
-    // 🔥 Si se pasa una categoría, agregarla al filtro
-    if ($idCategoria !== null && $idCategoria > 0) {
-        $sql .= " AND e.id_categoria = " . intval($idCategoria);
-    }
+                FROM publicacion p
+                INNER JOIN emprendimiento e 
+                    ON p.id_emprendimiento = e.id_emprendimiento
+                LEFT JOIN interaccion i 
+                    ON i.id_publicacion = p.id_publicacion 
+                    AND i.id_tipo_interaccion = 1
+                    AND i.est_interaccion = 1
+                LEFT JOIN producto prod ON p.id_publicacion = prod.id_publicacion AND p.id_tipo_publicacion = 1 AND prod.est_producto = 1
+                LEFT JOIN promocion prom ON p.id_publicacion = prom.id_publicacion AND p.id_tipo_publicacion = 2 AND prom.est_promocion = 1
+                LEFT JOIN evento ev ON p.id_publicacion = ev.id_publicacion AND p.id_tipo_publicacion = 3 AND ev.est_evento = 1
+                WHERE p.est_publicacion = 1
+                AND (p.tit_publicacion LIKE '%$textoBusqueda%' OR p.con_publicacion LIKE '%$textoBusqueda%')";
 
-    $sql .= " GROUP BY 
-                p.id_publicacion,
-                e.id_emprendimiento,
-                e.nom_emprendimiento,
-                e.img_per_emprendimiento,
-                p.tit_publicacion,
-                p.con_publicacion,
-                p.img_publicacion
-              ORDER BY p.fch_publicacion DESC";
-
-    $result = mysqli_query($con, $sql);
-
-    $data = [];
-    if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
-            $data[] = $row; 
+        // 🔥 Si se pasa una categoría, agregarla al filtro
+        if ($idCategoria !== null && $idCategoria > 0) {
+            $sql .= " AND e.id_categoria = " . intval($idCategoria);
         }
-    } else {
-        error_log("Error SQL: " . mysqli_error($con));
-    }
 
-    return $data; 
-}
+        $sql .= " GROUP BY 
+                    p.id_publicacion,
+                    p.id_tipo_publicacion,
+                    e.id_emprendimiento,
+                    e.nom_emprendimiento,
+                    e.img_per_emprendimiento,
+                    p.tit_publicacion,
+                    p.con_publicacion,
+                    p.img_publicacion,
+                    prod.prc_producto,
+                    prod.stk_producto,
+                    prom.dsc_promocion,
+                    prom.fch_ini_promocion,
+                    prom.fch_fin_promocion,
+                    ev.fch_evento,
+                    ev.lgr_evento
+                ORDER BY p.fch_publicacion DESC";
 
+        $result = mysqli_query($con, $sql);
+        $data = [];
 
-function filtrarPublicacionesPorCategoria($idEstudiante, $idCategoria) {
-    require_once("../../configuracion/conexion.php");
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $dataItem = [
+                    "publicacion" => [
+                        "id" => $row["id_publicacion"],
+                        "titulo" => $row["tit_publicacion"],
+                        "contenido" => $row["con_publicacion"],
+                        "imagen" => $row["img_publicacion"],
+                        "likes" => (int)$row["total_me_gusta"],
+                        "es_favorito" => (bool)$row["es_favorito"],
+                        "dio_like" => (bool)$row["dio_like"],
+                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                    ],
+                    "emprendimiento" => [
+                        "id" => $row["id_emprendimiento"],
+                        "nombre" => $row["nom_emprendimiento"],
+                        "imagen_perfil" => $row["img_per_emprendimiento"],
+                        "siguiendo" => (bool)$row["siguiendo"]
+                    ]
+                ];
 
-    $idEstudiante = intval($idEstudiante);
-    $idCategoria = intval($idCategoria);
+                // Agregar datos según tipo_publicacion
+                if ($row["id_tipo_publicacion"] == 1) { // Producto
+                    $dataItem["producto"] = [
+                        "precio" => $row["prc_producto"],
+                        "stock" => $row["stk_producto"]
+                    ];
+                } elseif ($row["id_tipo_publicacion"] == 2) { // Promoción
+                    $dataItem["promocion"] = [
+                        "descripcion" => $row["dsc_promocion"],
+                        "fecha_inicio" => $row["fch_ini_promocion"],
+                        "fecha_fin" => $row["fch_fin_promocion"]
+                    ];
+                } elseif ($row["id_tipo_publicacion"] == 3) { // Evento
+                    $dataItem["evento"] = [
+                        "fecha" => $row["fch_evento"],
+                        "lugar" => $row["lgr_evento"]
+                    ];
+                }
 
-    $sql = "SELECT 
-                p.id_publicacion,
-                e.id_emprendimiento,
-                e.nom_emprendimiento,
-                e.img_per_emprendimiento,
-                p.tit_publicacion,
-                p.con_publicacion,
-                p.img_publicacion,
-                COUNT(i.id_interaccion) AS total_me_gusta,
-
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM interaccion i2
-                        WHERE i2.id_publicacion = p.id_publicacion
-                        AND i2.id_estudiante = $idEstudiante
-                        AND i2.id_tipo_interaccion = 1
-                        AND i2.est_interaccion = 1
-                    ) THEN 1 ELSE 0
-                END AS dio_like,
-
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM seguimiento s
-                        WHERE s.id_emprendimiento = e.id_emprendimiento
-                        AND s.id_estudiante = $idEstudiante
-                        AND s.est_seguimiento = 1
-                    ) THEN 1 ELSE 0
-                END AS siguiendo,
-
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM favorito f
-                        WHERE f.id_publicacion = p.id_publicacion
-                        AND f.id_estudiante = $idEstudiante
-                        AND f.est_favorito = 1
-                    ) THEN 1 ELSE 0
-                END AS es_favorito
-
-            FROM publicacion p
-            INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
-            LEFT JOIN interaccion i 
-                ON i.id_publicacion = p.id_publicacion 
-                AND i.id_tipo_interaccion = 1
-                AND i.est_interaccion = 1
-            WHERE p.est_publicacion = 1
-              AND e.id_categoria = $idCategoria
-            GROUP BY 
-                p.id_publicacion,
-                e.id_emprendimiento,
-                e.nom_emprendimiento,
-                e.img_per_emprendimiento,
-                p.tit_publicacion,
-                p.con_publicacion,
-                p.img_publicacion
-            ORDER BY p.fch_publicacion DESC";
-
-    $result = mysqli_query($con, $sql);
-
-    $data = [];
-    if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
-            $data[] = $row;
+                $data[] = $dataItem;
+            }
+        } else {
+            error_log("Error SQL: " . mysqli_error($con));
         }
-    } else {
-        error_log("Error SQL: " . mysqli_error($con));
+
+        return $data; 
     }
 
-    return $data;
-}
+    function filtrarPublicacionesPorCategoria($idEstudiante, $idCategoria) {
+        require_once("../../configuracion/conexion.php");
+
+        $idEstudiante = intval($idEstudiante);
+        $idCategoria = intval($idCategoria);
+
+        $sql = "SELECT 
+                    p.id_publicacion,
+                    p.id_tipo_publicacion,
+                    e.id_emprendimiento,
+                    e.nom_emprendimiento,
+                    e.img_per_emprendimiento,
+                    p.tit_publicacion,
+                    p.con_publicacion,
+                    p.img_publicacion,
+                    COUNT(i.id_interaccion) AS total_me_gusta,
+
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM interaccion i2
+                            WHERE i2.id_publicacion = p.id_publicacion
+                            AND i2.id_estudiante = $idEstudiante
+                            AND i2.id_tipo_interaccion = 1
+                            AND i2.est_interaccion = 1
+                        ) THEN 1 ELSE 0
+                    END AS dio_like,
+
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM seguimiento s
+                            WHERE s.id_emprendimiento = e.id_emprendimiento
+                            AND s.id_estudiante = $idEstudiante
+                            AND s.est_seguimiento = 1
+                        ) THEN 1 ELSE 0
+                    END AS siguiendo,
+
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM favorito f
+                            WHERE f.id_publicacion = p.id_publicacion
+                            AND f.id_estudiante = $idEstudiante
+                            AND f.est_favorito = 1
+                        ) THEN 1 ELSE 0
+                    END AS es_favorito,
+
+                    -- Campos según tipo de publicación
+                    prod.prc_producto,
+                    prod.stk_producto,
+                    prom.dsc_promocion,
+                    prom.fch_ini_promocion,
+                    prom.fch_fin_promocion,
+                    ev.fch_evento,
+                    ev.lgr_evento
+
+                FROM publicacion p
+                INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
+                LEFT JOIN interaccion i 
+                    ON i.id_publicacion = p.id_publicacion 
+                    AND i.id_tipo_interaccion = 1
+                    AND i.est_interaccion = 1
+                LEFT JOIN producto prod ON p.id_publicacion = prod.id_publicacion AND p.id_tipo_publicacion = 1 AND prod.est_producto = 1
+                LEFT JOIN promocion prom ON p.id_publicacion = prom.id_publicacion AND p.id_tipo_publicacion = 2 AND prom.est_promocion = 1
+                LEFT JOIN evento ev ON p.id_publicacion = ev.id_publicacion AND p.id_tipo_publicacion = 3 AND ev.est_evento = 1
+                WHERE p.est_publicacion = 1
+                AND e.id_categoria = $idCategoria
+                GROUP BY 
+                    p.id_publicacion,
+                    p.id_tipo_publicacion,
+                    e.id_emprendimiento,
+                    e.nom_emprendimiento,
+                    e.img_per_emprendimiento,
+                    p.tit_publicacion,
+                    p.con_publicacion,
+                    p.img_publicacion,
+                    prod.prc_producto,
+                    prod.stk_producto,
+                    prom.dsc_promocion,
+                    prom.fch_ini_promocion,
+                    prom.fch_fin_promocion,
+                    ev.fch_evento,
+                    ev.lgr_evento
+                ORDER BY p.fch_publicacion DESC";
+
+        $result = mysqli_query($con, $sql);
+        $data = [];
+
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $dataItem = [
+                    "publicacion" => [
+                        "id" => $row["id_publicacion"],
+                        "titulo" => $row["tit_publicacion"],
+                        "contenido" => $row["con_publicacion"],
+                        "imagen" => $row["img_publicacion"],
+                        "likes" => (int)$row["total_me_gusta"],
+                        "es_favorito" => (bool)$row["es_favorito"],
+                        "dio_like" => (bool)$row["dio_like"],
+                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                    ],
+                    "emprendimiento" => [
+                        "id" => $row["id_emprendimiento"],
+                        "nombre" => $row["nom_emprendimiento"],
+                        "imagen_perfil" => $row["img_per_emprendimiento"],
+                        "siguiendo" => (bool)$row["siguiendo"]
+                    ]
+                ];
+
+                // Agregar datos según tipo_publicacion
+                if ($row["id_tipo_publicacion"] == 1) { // Producto
+                    $dataItem["producto"] = [
+                        "precio" => $row["prc_producto"],
+                        "stock" => $row["stk_producto"]
+                    ];
+                } elseif ($row["id_tipo_publicacion"] == 2) { // Promoción
+                    $dataItem["promocion"] = [
+                        "descripcion" => $row["dsc_promocion"],
+                        "fecha_inicio" => $row["fch_ini_promocion"],
+                        "fecha_fin" => $row["fch_fin_promocion"]
+                    ];
+                } elseif ($row["id_tipo_publicacion"] == 3) { // Evento
+                    $dataItem["evento"] = [
+                        "fecha" => $row["fch_evento"],
+                        "lugar" => $row["lgr_evento"]
+                    ];
+                }
+
+                $data[] = $dataItem;
+            }
+        } else {
+            error_log("Error SQL: " . mysqli_error($con));
+        }
+
+        return $data;
+    }
+
 
 ?>

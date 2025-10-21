@@ -1,4 +1,6 @@
 <?php 
+    //header('Content-Type: application/json; charset=utf-8');
+
     $idEstudiante = $_GET['idEstudiante'];  
 
     require_once("../../modelo/publicacion/publicacion.php");
