@@ -7,7 +7,6 @@ $response = array();
 // ✅ Recibir el id_estudiante del usuario logueado
 $id_estudiante = isset($_GET['id_estudiante']) ? intval($_GET['id_estudiante']) : 0;
 
-// Validar
 if ($id_estudiante <= 0) {
     $response['success'] = false;
     $response['message'] = 'ID de estudiante no válido.';
@@ -15,11 +14,6 @@ if ($id_estudiante <= 0) {
     exit;
 }
 
-/*
-   Queremos las colaboraciones donde:
-   - El emprendimiento de la colaboración pertenece al estudiante logueado
-   - Además queremos traer la información de la publicación (imagen, título)
-*/
 $sql = "
     SELECT 
         c.*, 
@@ -31,6 +25,7 @@ $sql = "
     INNER JOIN emprendimiento e ON c.id_emprendimiento = e.id_emprendimiento
     INNER JOIN publicacion p ON c.id_publicacion = p.id_publicacion
     WHERE e.id_estudiante = ?
+      AND c.est_colaboracion IN (0, 1)
 ";
 
 $stmt = $con->prepare($sql);
@@ -50,7 +45,6 @@ if ($result && $result->num_rows > 0) {
             'men_colaboracion' => $row['men_colaboracion'],
             'fch_colaboracion' => $row['fch_colaboracion'],
             'est_colaboracion' => $row['est_colaboracion'],
-            // 👇 Aquí anidamos el objeto "publicacion"
             'publicacion' => array(
                 'id' => $row['pub_id'],
                 'titulo' => $row['pub_titulo'],
@@ -64,11 +58,9 @@ if ($result && $result->num_rows > 0) {
     $response['data'] = $colaboraciones;
 } else {
     $response['success'] = false;
-    $response['message'] = 'No hay colaboraciones para este usuario.';
+    $response['message'] = 'No hay colaboraciones pendientes o aceptadas.';
 }
 
 echo json_encode($response, JSON_UNESCAPED_UNICODE);
 $con->close();
 ?>
-
-
