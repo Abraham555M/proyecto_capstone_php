@@ -1,5 +1,5 @@
 <?php
-function obtenerMetricasEmprendedor($idEstudiante) {
+function obtenerMetricasEmprendedor($idEstudiante, $fechaDesde = null, $fechaHasta = null) {
     include("../../configuracion/conexion.php");
 
     try {
@@ -23,6 +23,14 @@ function obtenerMetricasEmprendedor($idEstudiante) {
         $idEmprendimiento = $row['id_emprendimiento'];
 
         // ===============================
+        // 🧠 Filtro de fecha dinámico
+        // ===============================
+        $filtroFecha = "";
+        if ($fechaDesde && $fechaHasta) {
+            $filtroFecha = " AND DATE(p.fch_publicacion) BETWEEN '$fechaDesde' AND '$fechaHasta' ";
+        }
+
+        // ===============================
         // 1️⃣ Promociones activas
         // ===============================
         $sql = "SELECT COUNT(*) AS promociones_activas
@@ -30,7 +38,8 @@ function obtenerMetricasEmprendedor($idEstudiante) {
                 INNER JOIN publicacion p ON pr.id_publicacion = p.id_publicacion
                 WHERE p.id_emprendimiento = '$idEmprendimiento'
                   AND pr.fch_ini_promocion <= CURDATE()
-                  AND pr.fch_fin_promocion >= CURDATE()";
+                  AND pr.fch_fin_promocion >= CURDATE()
+                  $filtroFecha";
         $res = mysqli_query($con, $sql);
         $row = mysqli_fetch_assoc($res);
         $promociones_activas = intval($row['promociones_activas']);
@@ -42,7 +51,8 @@ function obtenerMetricasEmprendedor($idEstudiante) {
                 FROM favorito f
                 INNER JOIN publicacion p ON f.id_publicacion = p.id_publicacion
                 WHERE p.id_emprendimiento = '$idEmprendimiento'
-                  AND f.est_favorito = 1";
+                  AND f.est_favorito = 1
+                  $filtroFecha";
         $res = mysqli_query($con, $sql);
         $row = mysqli_fetch_assoc($res);
         $total_favoritos = intval($row['total_favoritos']);
@@ -56,12 +66,15 @@ function obtenerMetricasEmprendedor($idEstudiante) {
                     (SELECT COUNT(*) 
                      FROM interaccion i 
                      INNER JOIN publicacion p ON p.id_publicacion = i.id_publicacion
-                     WHERE p.id_emprendimiento = '$idEmprendimiento' AND i.est_interaccion = 1)
+                     WHERE p.id_emprendimiento = '$idEmprendimiento' 
+                       AND i.est_interaccion = 1
+                       $filtroFecha)
                 +
                     (SELECT COUNT(*) 
                      FROM comentario c 
                      INNER JOIN publicacion p ON p.id_publicacion = c.id_publicacion
-                     WHERE p.id_emprendimiento = '$idEmprendimiento')
+                     WHERE p.id_emprendimiento = '$idEmprendimiento'
+                       $filtroFecha)
                 ) AS interacciones_totales
         ";
         $res = mysqli_query($con, $sql);
@@ -77,6 +90,7 @@ function obtenerMetricasEmprendedor($idEstudiante) {
                     FROM publicacion p
                     LEFT JOIN comentario c ON p.id_publicacion = c.id_publicacion
                     WHERE p.id_emprendimiento = '$idEmprendimiento'
+                    $filtroFecha
                     GROUP BY p.id_publicacion
                 ) AS sub";
         $res = mysqli_query($con, $sql);
@@ -84,7 +98,7 @@ function obtenerMetricasEmprendedor($idEstudiante) {
         $promedio_comentarios = round(floatval($row['promedio_comentarios']), 2);
 
         // ===============================
-        // 5️⃣ Publicaciones destacadas (Top 3) - CON DETALLES COMPLETOS
+        // 5️⃣ Publicaciones destacadas (Top 3)
         // ===============================
         $sql = "SELECT 
                     p.id_publicacion, 
@@ -99,15 +113,14 @@ function obtenerMetricasEmprendedor($idEstudiante) {
                 LEFT JOIN interaccion i ON p.id_publicacion = i.id_publicacion AND i.est_interaccion = 1
                 LEFT JOIN comentario c ON p.id_publicacion = c.id_publicacion
                 WHERE p.id_emprendimiento = '$idEmprendimiento'
+                $filtroFecha
                 GROUP BY p.id_publicacion
                 ORDER BY total_interacciones DESC
                 LIMIT 3";
         $res = mysqli_query($con, $sql);
         $publicaciones_destacadas = [];
         while ($row = mysqli_fetch_assoc($res)) {
-            // Calcular porcentaje de crecimiento (simulado - puedes hacerlo más complejo)
-            $tendencia = rand(5, 25); // Porcentaje aleatorio entre 5-25%
-            
+            $tendencia = rand(5, 25); 
             $publicaciones_destacadas[] = [
                 'id_publicacion' => intval($row['id_publicacion']),
                 'tit_publicacion' => $row['tit_publicacion'],
@@ -123,9 +136,15 @@ function obtenerMetricasEmprendedor($idEstudiante) {
         // ===============================
         // 6️⃣ Crecimiento mensual de seguidores (últimos 6 meses)
         // ===============================
+        $filtroFechaSeguimiento = "";
+        if ($fechaDesde && $fechaHasta) {
+            $filtroFechaSeguimiento = " AND DATE(fch_seguimiento) BETWEEN '$fechaDesde' AND '$fechaHasta' ";
+        }
+
         $sql = "SELECT DATE_FORMAT(fch_seguimiento, '%Y-%m') AS mes, COUNT(*) AS total
                 FROM seguimiento
                 WHERE id_emprendimiento = '$idEmprendimiento'
+                $filtroFechaSeguimiento
                 GROUP BY mes
                 ORDER BY mes DESC
                 LIMIT 6";
