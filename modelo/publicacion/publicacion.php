@@ -1,7 +1,7 @@
 <?php 
-    function listarPublicacionInicio($idEstudiante){
+    function listarPublicacionInicio($idEstudiante) {
         require_once("../../configuracion/conexion.php");
-        
+
         $sql = "SELECT 
                     p.id_publicacion,
                     p.id_tipo_publicacion,
@@ -44,6 +44,9 @@
                         ) THEN 1 ELSE 0
                     END AS es_favorito,
 
+                    -- 🔹 Nuevo campo basado en el valor real de la columna
+                    CASE WHEN p.est_actualizado = 1 THEN 1 ELSE 0 END AS es_actualizado,
+
                     -- Campos específicos según tipo_publicacion
                     prod.prc_producto,
                     prod.stk_producto,
@@ -54,14 +57,24 @@
                     ev.lgr_evento
 
                 FROM publicacion p
-                INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
+                INNER JOIN emprendimiento e 
+                    ON p.id_emprendimiento = e.id_emprendimiento
                 LEFT JOIN interaccion i 
                     ON i.id_publicacion = p.id_publicacion 
                     AND i.id_tipo_interaccion = 1
                     AND i.est_interaccion = 1
-                LEFT JOIN producto prod ON p.id_publicacion = prod.id_publicacion AND p.id_tipo_publicacion = 1 AND prod.est_producto = 1
-                LEFT JOIN promocion prom ON p.id_publicacion = prom.id_publicacion AND p.id_tipo_publicacion = 2 AND prom.est_promocion = 1
-                LEFT JOIN evento ev ON p.id_publicacion = ev.id_publicacion AND p.id_tipo_publicacion = 3 AND ev.est_evento = 1
+                LEFT JOIN producto prod 
+                    ON p.id_publicacion = prod.id_publicacion 
+                    AND p.id_tipo_publicacion = 1 
+                    AND prod.est_producto = 1
+                LEFT JOIN promocion prom 
+                    ON p.id_publicacion = prom.id_publicacion 
+                    AND p.id_tipo_publicacion = 2 
+                    AND prom.est_promocion = 1
+                LEFT JOIN evento ev 
+                    ON p.id_publicacion = ev.id_publicacion 
+                    AND p.id_tipo_publicacion = 3 
+                    AND ev.est_evento = 1
                 WHERE p.est_publicacion = 1
                 GROUP BY 
                     p.id_publicacion,
@@ -72,6 +85,7 @@
                     p.tit_publicacion,
                     p.con_publicacion,
                     p.img_publicacion,
+                    p.est_actualizado, -- ✅ importante agregar este campo
                     prod.prc_producto,
                     prod.stk_producto,
                     prom.dsc_promocion,
@@ -96,6 +110,7 @@
                         "es_favorito" => (bool)$row["es_favorito"],
                         "dio_like" => (bool)$row["dio_like"],
                         "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                        "es_actualizado" => (int)$row["es_actualizado"], // 👈 campo nuevo correcto
                     ],
                     "emprendimiento" => [
                         "id" => $row["id_emprendimiento"],
@@ -128,8 +143,10 @@
             }
         }
 
-        return $data; 
+        return $data;
     }
+
+
 
     function listarPublicacionPerfil($idEstudiante, $idEmprendimiento){
         
@@ -312,6 +329,9 @@
                         ) THEN 1 ELSE 0
                     END AS es_favorito,
 
+                    -- 🔹 Usar directamente el campo est_actualizado (0/1)
+                    CASE WHEN p.est_actualizado = 1 THEN 1 ELSE 0 END AS es_actualizado,
+
                     -- Campos específicos según tipo de publicación
                     prod.prc_producto,
                     prod.stk_producto,
@@ -328,9 +348,18 @@
                     ON i.id_publicacion = p.id_publicacion 
                     AND i.id_tipo_interaccion = 1
                     AND i.est_interaccion = 1
-                LEFT JOIN producto prod ON p.id_publicacion = prod.id_publicacion AND p.id_tipo_publicacion = 1 AND prod.est_producto = 1
-                LEFT JOIN promocion prom ON p.id_publicacion = prom.id_publicacion AND p.id_tipo_publicacion = 2 AND prom.est_promocion = 1
-                LEFT JOIN evento ev ON p.id_publicacion = ev.id_publicacion AND p.id_tipo_publicacion = 3 AND ev.est_evento = 1
+                LEFT JOIN producto prod 
+                    ON p.id_publicacion = prod.id_publicacion 
+                    AND p.id_tipo_publicacion = 1 
+                    AND prod.est_producto = 1
+                LEFT JOIN promocion prom 
+                    ON p.id_publicacion = prom.id_publicacion 
+                    AND p.id_tipo_publicacion = 2 
+                    AND prom.est_promocion = 1
+                LEFT JOIN evento ev 
+                    ON p.id_publicacion = ev.id_publicacion 
+                    AND p.id_tipo_publicacion = 3 
+                    AND ev.est_evento = 1
                 WHERE p.est_publicacion = 1
                 AND (p.tit_publicacion LIKE '%$textoBusqueda%' OR p.con_publicacion LIKE '%$textoBusqueda%')";
 
@@ -348,6 +377,7 @@
                     p.tit_publicacion,
                     p.con_publicacion,
                     p.img_publicacion,
+                    p.est_actualizado,           -- agregado al GROUP BY
                     prod.prc_producto,
                     prod.stk_producto,
                     prom.dsc_promocion,
@@ -372,6 +402,7 @@
                         "es_favorito" => (bool)$row["es_favorito"],
                         "dio_like" => (bool)$row["dio_like"],
                         "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                        "es_actualizado" => (int)$row["es_actualizado"], // 👈 ahora proviene de est_actualizado
                     ],
                     "emprendimiento" => [
                         "id" => $row["id_emprendimiento"],
@@ -457,6 +488,9 @@
                         ) THEN 1 ELSE 0
                     END AS es_favorito,
 
+                    -- 🔹 Nuevo campo para controlar si la publicación fue actualizada
+                    CASE WHEN p.est_actualizado = 1 THEN 1 ELSE 0 END AS es_actualizado,
+
                     -- Campos según tipo de publicación
                     prod.prc_producto,
                     prod.stk_producto,
@@ -467,14 +501,24 @@
                     ev.lgr_evento
 
                 FROM publicacion p
-                INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
+                INNER JOIN emprendimiento e 
+                    ON p.id_emprendimiento = e.id_emprendimiento
                 LEFT JOIN interaccion i 
                     ON i.id_publicacion = p.id_publicacion 
                     AND i.id_tipo_interaccion = 1
                     AND i.est_interaccion = 1
-                LEFT JOIN producto prod ON p.id_publicacion = prod.id_publicacion AND p.id_tipo_publicacion = 1 AND prod.est_producto = 1
-                LEFT JOIN promocion prom ON p.id_publicacion = prom.id_publicacion AND p.id_tipo_publicacion = 2 AND prom.est_promocion = 1
-                LEFT JOIN evento ev ON p.id_publicacion = ev.id_publicacion AND p.id_tipo_publicacion = 3 AND ev.est_evento = 1
+                LEFT JOIN producto prod 
+                    ON p.id_publicacion = prod.id_publicacion 
+                    AND p.id_tipo_publicacion = 1 
+                    AND prod.est_producto = 1
+                LEFT JOIN promocion prom 
+                    ON p.id_publicacion = prom.id_publicacion 
+                    AND p.id_tipo_publicacion = 2 
+                    AND prom.est_promocion = 1
+                LEFT JOIN evento ev 
+                    ON p.id_publicacion = ev.id_publicacion 
+                    AND p.id_tipo_publicacion = 3 
+                    AND ev.est_evento = 1
                 WHERE p.est_publicacion = 1
                 AND e.id_categoria = $idCategoria
                 GROUP BY 
@@ -486,6 +530,7 @@
                     p.tit_publicacion,
                     p.con_publicacion,
                     p.img_publicacion,
+                    p.est_actualizado, -- ✅ Agregado al GROUP BY
                     prod.prc_producto,
                     prod.stk_producto,
                     prom.dsc_promocion,
@@ -510,6 +555,7 @@
                         "es_favorito" => (bool)$row["es_favorito"],
                         "dio_like" => (bool)$row["dio_like"],
                         "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                        "es_actualizado" => (int)$row["es_actualizado"], // 👈 Campo agregado
                     ],
                     "emprendimiento" => [
                         "id" => $row["id_emprendimiento"],
@@ -546,6 +592,4 @@
 
         return $data;
     }
-
-
 ?>
