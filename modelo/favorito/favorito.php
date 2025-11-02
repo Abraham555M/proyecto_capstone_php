@@ -45,7 +45,7 @@
         }
     }
 
-    function listarPublicacionesFavoritos($idEstudiante) {
+   function listarPublicacionesFavoritos($idEstudiante) {
         require_once("../../configuracion/conexion.php");
 
         $idEstudiante = intval($idEstudiante);
@@ -84,6 +84,9 @@
 
                     1 AS es_favorito,
 
+                    -- 🔹 Nuevo campo: verificar si fue actualizada
+                    CASE WHEN p.est_actualizado = 1 THEN 1 ELSE 0 END AS es_actualizado,
+
                     -- Campos específicos según tipo_publicacion
                     prod.prc_producto,
                     prod.stk_producto,
@@ -115,6 +118,7 @@
                     p.tit_publicacion,
                     p.con_publicacion,
                     p.img_publicacion,
+                    p.est_actualizado,
                     prod.prc_producto,
                     prod.stk_producto,
                     prom.dsc_promocion,
@@ -139,6 +143,7 @@
                         "es_favorito" => true, // Siempre será favorito
                         "dio_like" => (bool)$row["dio_like"],
                         "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                        "es_actualizado" => (int)$row["es_actualizado"], // 👈 nuevo campo agregado
                     ],
                     "emprendimiento" => [
                         "id" => $row["id_emprendimiento"],
@@ -216,6 +221,9 @@
 
                     1 AS es_favorito,
 
+                    -- 🔹 Nuevo campo: verificar si fue actualizada
+                    CASE WHEN p.est_actualizado = 1 THEN 1 ELSE 0 END AS es_actualizado,
+
                     -- Campos específicos según tipo_publicacion
                     prod.prc_producto,
                     prod.stk_producto,
@@ -257,6 +265,7 @@
                     p.tit_publicacion,
                     p.con_publicacion,
                     p.img_publicacion,
+                    p.est_actualizado,
                     prod.prc_producto,
                     prod.stk_producto,
                     prom.dsc_promocion,
@@ -278,9 +287,10 @@
                         "contenido" => $row["con_publicacion"],
                         "imagen" => $row["img_publicacion"],
                         "likes" => (int)$row["total_me_gusta"],
-                        "es_favorito" => true,
+                        "es_favorito" => true, // Siempre será favorito
                         "dio_like" => (bool)$row["dio_like"],
-                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"]
+                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                        "es_actualizado" => (int)$row["es_actualizado"], // 👈 nuevo campo agregado
                     ],
                     "emprendimiento" => [
                         "id" => $row["id_emprendimiento"],
@@ -318,7 +328,6 @@
         return $data;
     }
 
-
     function buscarFavoritosConCategoria($idEstudiante, $texto, $idCategoria = null) {
         require_once("../../configuracion/conexion.php");
 
@@ -328,6 +337,7 @@
         $sql = "SELECT 
                     p.id_publicacion,
                     p.id_tipo_publicacion,
+                    p.est_actualizado,
                     e.id_emprendimiento,
                     e.nom_emprendimiento,
                     e.img_per_emprendimiento,
@@ -392,7 +402,7 @@
                 AND p.est_publicacion = 1
                 AND (p.tit_publicacion LIKE '%$texto%' OR p.con_publicacion LIKE '%$texto%')";
 
-        // ⭐ Filtro adicional por categoría (si se envía)
+        // 🔸 Filtro adicional por categoría
         if ($idCategoria !== null && $idCategoria > 0) {
             $sql .= " AND e.id_categoria = $idCategoria";
         }
@@ -401,6 +411,7 @@
                 GROUP BY 
                     p.id_publicacion,
                     p.id_tipo_publicacion,
+                    p.est_actualizado,
                     e.id_emprendimiento,
                     e.nom_emprendimiento,
                     e.img_per_emprendimiento,
@@ -430,7 +441,9 @@
                         "likes" => (int)$row["total_me_gusta"],
                         "es_favorito" => true,
                         "dio_like" => (bool)$row["dio_like"],
-                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"]
+                        "tipo_publicacion" => (int)$row["id_tipo_publicacion"],
+                        // 🔸 Nuevo campo derivado del est_actualizado
+                        "es_actualizado" => ($row["est_actualizado"] == 1 ? 1 : 0)
                     ],
                     "emprendimiento" => [
                         "id" => $row["id_emprendimiento"],
@@ -440,7 +453,7 @@
                     ]
                 ];
 
-                // Agregar datos específicos según tipo_publicacion
+                // Datos específicos según tipo de publicación
                 if ($row["id_tipo_publicacion"] == 1) { // Producto
                     $dataItem["producto"] = [
                         "precio" => $row["prc_producto"],
@@ -467,5 +480,6 @@
 
         return $data;
     }
+
 
 ?>
