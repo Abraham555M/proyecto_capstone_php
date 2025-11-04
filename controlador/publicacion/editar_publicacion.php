@@ -47,7 +47,7 @@ try {
                 break;
 
             // 🟢 EVENTO
-            case "2": // ID del tipo evento
+            case "3": // ID del tipo evento
                 $fch_evento = $_POST['fch_evento'] ?? null;
                 $lgr_evento = $_POST['lgr_evento'] ?? null;
                 if ($fch_evento !== null && $lgr_evento !== null) {
@@ -61,7 +61,7 @@ try {
                 break;
 
             // 🟢 PROMOCIÓN
-            case "3": // ID del tipo promoción
+            case "2": // ID del tipo promoción
                 $dsc_promocion = $_POST['dsc_promocion'] ?? null;
                 $fch_ini_promocion = $_POST['fch_ini_promocion'] ?? null;
                 $fch_fin_promocion = $_POST['fch_fin_promocion'] ?? null;

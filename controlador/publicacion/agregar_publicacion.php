@@ -12,7 +12,7 @@ if (isset($_POST['id_emprendimiento'], $_POST['id_tipo_publicacion'], $_POST['ti
     $estado = $_POST['est_publicacion'];
     $fecha = date("Y-m-d H:i:s");
 
-    // Imagen: ahora viene como URL desde Firebase
+    // Imagen (puede venir como URL desde Firebase)
     $img_url = $_POST['img_publicacion'] ?? null;
 
     // Insertar publicación principal
@@ -29,23 +29,23 @@ if (isset($_POST['id_emprendimiento'], $_POST['id_tipo_publicacion'], $_POST['ti
             case "1": // Producto
                 $precio = $_POST['prc_producto'] ?? 0;
                 $stock = $_POST['stk_producto'] ?? 0;
-                $sql_detalle = "INSERT INTO producto (id_publicacion, prc_producto, stk_producto)
-                                VALUES ('$id_publicacion', '$precio', '$stock')";
+                $sql_detalle = "INSERT INTO producto (id_publicacion, prc_producto, stk_producto, est_producto)
+                                VALUES ('$id_publicacion', '$precio', '$stock', 1)";
                 break;
 
-            case "3": // Promoción
+            case "2": // Promoción
                 $descuento = $_POST['dsc_promocion'] ?? 0;
                 $fch_ini = $_POST['fch_ini_promocion'] ?? null;
                 $fch_fin = $_POST['fch_fin_promocion'] ?? null;
-                $sql_detalle = "INSERT INTO promocion (id_publicacion, dsc_promocion, fch_ini_promocion, fch_fin_promocion)
-                                VALUES ('$id_publicacion', '$descuento', '$fch_ini', '$fch_fin')";
+                $sql_detalle = "INSERT INTO promocion (id_publicacion, dsc_promocion, fch_ini_promocion, fch_fin_promocion, est_promocion)
+                                VALUES ('$id_publicacion', '$descuento', '$fch_ini', '$fch_fin', 1)";
                 break;
 
-            case "4": // Evento
+            case "3": // Evento
                 $fecha_evento = $_POST['fch_evento'] ?? null;
                 $lugar_evento = $_POST['lgr_evento'] ?? null;
-                $sql_detalle = "INSERT INTO evento (id_publicacion, fch_evento, lgr_evento)
-                                VALUES ('$id_publicacion', '$fecha_evento', '$lugar_evento')";
+                $sql_detalle = "INSERT INTO evento (id_publicacion, fch_evento, lgr_evento, est_evento)
+                                VALUES ('$id_publicacion', '$fecha_evento', '$lugar_evento', 1)";
                 break;
         }
 
