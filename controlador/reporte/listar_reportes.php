@@ -1,0 +1,40 @@
+<?php
+ include("../../configuracion/conexion.php");// tu archivo de conexión a la base de datos
+
+$query = "
+SELECT 
+    r.id_reporte,
+    e.nom_estudiante,
+    e.ape_pat_estudiante,
+    tr.nom_tipo_reporte,
+    p.tit_publicacion,
+    p.con_publicacion,
+    r.est_reporte,
+    r.fch_reporte
+FROM reporte r
+INNER JOIN estudiante e ON e.id_estudiante = r.id_estudiante
+INNER JOIN tipo_reporte tr ON tr.id_tipo_reporte = r.id_tipo_reporte
+INNER JOIN publicacion p ON p.id_publicacion = r.id_publicacion
+ORDER BY r.fch_reporte DESC
+";
+
+$resultado = $con->query($query);
+
+if ($resultado && $resultado->num_rows > 0) {
+    $reportes = array();
+    while ($fila = $resultado->fetch_assoc()) {
+        $reportes[] = array(
+            "id_reporte" => $fila["id_reporte"],
+            "usuario_reporta" => $fila["nom_estudiante"] . " " . $fila["ape_pat_estudiante"],
+            "motivo" => $fila["nom_tipo_reporte"],
+            "titulo" => $fila["tit_publicacion"],
+            "contenido" => $fila["con_publicacion"],
+            "estado" => $fila["est_reporte"],
+            "fecha" => $fila["fch_reporte"]
+        );
+    }
+    echo json_encode($reportes, JSON_UNESCAPED_UNICODE);
+} else {
+    echo json_encode(array("error" => "No hay reportes registrados."));
+}
+?>

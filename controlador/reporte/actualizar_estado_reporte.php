@@ -1,0 +1,36 @@
+<?php
+include("../../configuracion/conexion.php");
+
+$idReporte = $_GET['idReporte'] ?? null;
+$estado = $_GET['estado'] ?? null;
+
+$estadoMap = [
+    "pendiente" => 1,
+    "eliminado" => 2,
+    "archivado" => 3,
+    "advertido" => 4
+];
+
+if ($idReporte && isset($estadoMap[$estado])) {
+    $nuevoEstado = $estadoMap[$estado];
+
+    $query = "UPDATE reporte SET est_reporte = $nuevoEstado WHERE id_reporte = $idReporte";
+    if ($con->query($query)) {
+
+         // ✅ Si se marca como “resuelto”, desactivar publicación asociada
+        if ($estado === "eliminado") {
+            $sqlPub = "UPDATE publicacion p
+                       JOIN reporte r ON p.id_publicacion = r.id_publicacion 
+                       SET p.est_publicacion = 0, p.est_actualizado = 0 
+                       WHERE r.id_reporte = $idReporte";
+            $con->query($sqlPub);
+        }
+
+        echo json_encode(["success" => true, "mensaje" => "Estado actualizado correctamente."]);
+    } else {
+        echo json_encode(["success" => false, "error" => "Error al actualizar el estado."]);
+    }
+} else {
+    echo json_encode(["success" => false, "error" => "Parámetros inválidos."]);
+}
+?>
