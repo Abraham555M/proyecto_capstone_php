@@ -18,9 +18,13 @@ try {
     $con_publicacion = $_POST['con_publicacion'];
     $img_publicacion = $_POST['img_publicacion'];
 
-    // 🧩 Actualizar tabla principal
+    // 🧩 Actualizar tabla principal + marcar est_actualizado = 1
     $sql = "UPDATE publicacion 
-            SET id_tipo_publicacion = ?, tit_publicacion = ?, con_publicacion = ?, img_publicacion = ? 
+            SET id_tipo_publicacion = ?, 
+                tit_publicacion = ?, 
+                con_publicacion = ?, 
+                img_publicacion = ?, 
+                est_actualizado = 1
             WHERE id_publicacion = ?";
     $stmt = $con->prepare($sql);
     $stmt->bind_param("ssssi", $id_tipo_publicacion, $tit_publicacion, $con_publicacion, $img_publicacion, $id_publicacion);
