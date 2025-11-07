@@ -490,5 +490,56 @@
         $stmt->close();
         return $ok;
     }
+    
+    function registrarTokenFCM($idEstudiante, $tokenFCM) {
+    // 🚨 IMPORTANTE: Ajusta esta ruta si es diferente
+    include("../../configuracion/conexion.php"); 
+
+    // Respuesta por defecto
+    $data = array("status" => "error", "message" => "No se pudo actualizar el token FCM.");
+
+    if ($con) {
+        // Usamos sentencias preparadas para seguridad y eficiencia
+        $sql = "UPDATE estudiante 
+                SET token_fcm = ? 
+                WHERE id_estudiante = ?";
+
+        if ($stmt = mysqli_prepare($con, $sql)) {
+            // "si" significa: s=string (token), i=integer (id_estudiante)
+            mysqli_stmt_bind_param($stmt, "si", $tokenFCM, $idEstudiante);
+
+            if (mysqli_stmt_execute($stmt)) {
+                // Comprobamos si se afectó alguna fila (se actualizó el token)
+                if (mysqli_stmt_affected_rows($stmt) > 0) {
+                    $data = array(
+                        "status" => "success",
+                        "message" => "Token FCM registrado correctamente."
+                    );
+                } else {
+                    // Si affected_rows es 0, el estudiante no existe o el token no cambió
+                    $data = array(
+                        "status" => "warning",
+                        "message" => "Estudiante no encontrado o token ya estaba registrado."
+                    );
+                }
+            } else {
+                $data = array(
+                    "status" => "error",
+                    "message" => "Error al ejecutar la actualización: " . mysqli_error($con)
+                );
+            }
+
+            mysqli_stmt_close($stmt);
+        } else {
+            $data = array(
+                "status" => "error",
+                "message" => "Error al preparar la consulta: " . mysqli_error($con)
+            );
+        }
+        mysqli_close($con);
+    }
+    
+    return $data;
+}
 
 ?>
