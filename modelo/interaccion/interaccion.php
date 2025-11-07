@@ -1,54 +1,36 @@
 <?php 
 // RUTA: modelo/interaccion/interaccion.php
 
-require_once("../../configuracion/FCMService.php"); 
+/*
+ * ----------------------------------------------------------------------
+ * INCLUSIONES GLOBALES
+ * ----------------------------------------------------------------------
+ * 1. Incluimos el nuevo modelo de notificación (que contiene las funciones auxiliares).
+ */
+require_once(__DIR__ . '/../notificacion/notificacion.php'); 
 
-// ----------------------------------------------------------------------
-// FUNCIÓN AUXILIAR: Obtiene el token del dueño de la Publicación y el nombre del interactor
-// ----------------------------------------------------------------------
-function obtenerDatosNotificacionPublicacion($con, $idPublicacion, $idEstudianteInteractor) {
-    // Se asume que el token está en estudiante.token_fcm
-    $sql = "SELECT 
-                e_dueno.token_fcm AS token_dueno,
-                CONCAT(e_interactor.nom_estudiante, ' ', e_interactor.ape_pat_estudiante) AS nombre_interactor,
-                e_dueno.id_estudiante AS id_dueno
-            FROM 
-                publicacion p
-            JOIN 
-                emprendimiento em ON p.id_emprendimiento = em.id_emprendimiento
-            JOIN 
-                estudiante e_dueno ON em.id_estudiante = e_dueno.id_estudiante
-            JOIN 
-                estudiante e_interactor ON e_interactor.id_estudiante = ?
-            WHERE 
-                p.id_publicacion = ?";
 
-    $data = null;
-    if ($stmt = mysqli_prepare($con, $sql)) {
-        mysqli_stmt_bind_param($stmt, "ii", $idEstudianteInteractor, $idPublicacion);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $data = mysqli_fetch_assoc($result);
-        mysqli_stmt_close($stmt);
-    }
-    return $data;
-}
-
-// ----------------------------------------------------------------------
-// FUNCIÓN PRINCIPAL: Registrar Like de Publicación (Con Lógica FCM)
-// ----------------------------------------------------------------------
-function registrarLike($idPublicacion, $idEstudiante){
+// =========================================================================
+// FUNCIÓN PRINCIPAL: Registrar Like de Publicación (Segura y Completa)
+// =========================================================================
+function registrarLike($idPublicacion, $idEstudiante){ // $idEstudiante es el INTERACTOR
+    // Incluimos la conexión local para esta función
     include("../../configuracion/conexion.php"); 
     
     $response = array("status" => "error", "message" => "Error desconocido");
+    $is_liked = false; // Flag para controlar la notificación
 
-    // 1. Verificar si ya existe el like
+    // 1. Verificar si ya existe el like (Usando Sentencias Preparadas)
     $sql_check = "SELECT id_interaccion, est_interaccion 
                   FROM interaccion 
-                  WHERE id_publicacion = '$idPublicacion' 
-                  AND id_estudiante = '$idEstudiante' 
+                  WHERE id_publicacion = ? 
+                  AND id_estudiante = ? 
                   AND id_tipo_interaccion = 1";
-    $res = mysqli_query($con, $sql_check);
+    
+    $stmt_check = mysqli_prepare($con, $sql_check);
+    mysqli_stmt_bind_param($stmt_check, "ii", $idPublicacion, $idEstudiante);
+    mysqli_stmt_execute($stmt_check);
+    $res = mysqli_stmt_get_result($stmt_check);
 
     if(mysqli_num_rows($res) > 0){
         $row = mysqli_fetch_assoc($res);
@@ -56,69 +38,87 @@ function registrarLike($idPublicacion, $idEstudiante){
         $es_activo_actual = $row['est_interaccion'];
 
         if($es_activo_actual == 1){
-            // 2a. UNLIKE - NO se notifica
-            $sql_update = "UPDATE interaccion 
-                           SET est_interaccion = 0, fch_interaccion = NOW() 
-                           WHERE id_interaccion = '$id_interaccion'";
-            if(mysqli_query($con, $sql_update)){
+            // 2a. UNLIKE
+            $sql_update = "UPDATE interaccion SET est_interaccion = 0, fch_interaccion = NOW() WHERE id_interaccion = ?";
+            $stmt_update = mysqli_prepare($con, $sql_update);
+            mysqli_stmt_bind_param($stmt_update, "i", $id_interaccion);
+            
+            if(mysqli_stmt_execute($stmt_update)){
                 $response = array("status" => "unliked");
             } else {
                 $response = array("status" => "error", "message" => mysqli_error($con));
             }
+            mysqli_stmt_close($stmt_update);
+            
         } else {
-            // 2b. REACTIVACIÓN (LIKED) - SÍ se notifica
-            $sql_update = "UPDATE interaccion 
-                           SET est_interaccion = 1, fch_interaccion = NOW()
-                           WHERE id_interaccion = '$id_interaccion'";
+            // 2b. REACTIVACIÓN (LIKED)
+            $sql_update = "UPDATE interaccion SET est_interaccion = 1, fch_interaccion = NOW() WHERE id_interaccion = ?";
+            $stmt_update = mysqli_prepare($con, $sql_update);
+            mysqli_stmt_bind_param($stmt_update, "i", $id_interaccion);
                            
-            if(mysqli_query($con, $sql_update)){
+            if(mysqli_stmt_execute($stmt_update)){
                 $response = array("status" => "liked");
-                
-                // --- LÓGICA FCM ---
-                $datos_notificacion = obtenerDatosNotificacionPublicacion($con, $idPublicacion, $idEstudiante);
-                
-                if ($datos_notificacion && $datos_notificacion['id_dueno'] != $idEstudiante) { 
-                    $token_destino = $datos_notificacion['token_dueno'];
-                    $nombre_interactor = $datos_notificacion['nombre_interactor'];
-                    
-                    $titulo_fcm = "¡Nueva Reacción! 👍";
-                    $cuerpo_fcm = $nombre_interactor . " le ha dado Me gusta a tu publicación.";
-                    $payload = array("action" => "NEW_LIKE_POST", "id_publicacion" => $idPublicacion);
-                    
-                    $rpta_fcm = enviarNotificacionFCM($token_destino, $titulo_fcm, $cuerpo_fcm, $payload);
-                    $response['fcm_result'] = $rpta_fcm; 
-                }
+                $is_liked = true; // Activar lógica de notificación
             } else {
                 $response = array("status" => "error", "message" => mysqli_error($con));
             }
+            mysqli_stmt_close($stmt_update);
         }
+        
     } else {
-        // 3. NEW LIKE - SÍ se notifica
+        // 3. NEW LIKE
         $sql_insert = "INSERT INTO interaccion (id_estudiante, id_publicacion, id_tipo_interaccion, est_interaccion, fch_interaccion) 
-                       VALUES ('$idEstudiante', '$idPublicacion', 1, 1, NOW())";
+                       VALUES (?, ?, 1, 1, NOW())";
+        
+        $stmt_insert = mysqli_prepare($con, $sql_insert);
+        mysqli_stmt_bind_param($stmt_insert, "ii", $idEstudiante, $idPublicacion);
                        
-        if(mysqli_query($con, $sql_insert)){
+        if(mysqli_stmt_execute($stmt_insert)){
             $response = array("status" => "liked");
+            $is_liked = true; // Activar lógica de notificación
+        } else {
+            $response = array("status" => "error", "message" => mysqli_error($con));
+        }
+        mysqli_stmt_close($stmt_insert);
+    }
+    
+    mysqli_stmt_close($stmt_check); // Cerrar el statement de verificación
+
+    // --- 🚨 LÓGICA DE NOTIFICACIÓN ACTUALIZADA (DB y FCM) 🚨 ---
+    if ($is_liked) {
+        $datos_notificacion = obtenerDatosNotificacionPublicacion($con, $idPublicacion, $idEstudiante); 
+        
+        if ($datos_notificacion && $datos_notificacion['id_dueno'] != $idEstudiante) { 
             
-            // --- LÓGICA FCM ---
-            $datos_notificacion = obtenerDatosNotificacionPublicacion($con, $idPublicacion, $idEstudiante);
+            // Verificamos si el receptor (id_dueno) quiere recibir notificaciones de LIKES
+            if ($datos_notificacion['notif_likes'] == 1) {
             
-            if ($datos_notificacion && $datos_notificacion['id_dueno'] != $idEstudiante) { 
+                $id_receptor = $datos_notificacion['id_dueno'];
                 $token_destino = $datos_notificacion['token_dueno'];
                 $nombre_interactor = $datos_notificacion['nombre_interactor'];
                 
                 $titulo_fcm = "¡Nueva Reacción! 👍";
                 $cuerpo_fcm = $nombre_interactor . " le ha dado Me gusta a tu publicación.";
-                $payload = array("action" => "NEW_LIKE_POST", "id_publicacion" => $idPublicacion);
-                
+                $id_tipo_notif = 2; // 2 = 'likePublicacion'
+
+                // 1. REGISTRAR EN LA TABLA NOTIFICACION (Llamada actualizada)
+                $rpta_db = registrarNotificacionDB($con, $id_receptor, $idEstudiante, $id_tipo_notif, $titulo_fcm, $cuerpo_fcm);
+                $response['notificacion_db'] = $rpta_db;
+
+                // 2. ENVIAR NOTIFICACIÓN PUSH FCM
+                $payload = array(
+                    "action" => "NEW_LIKE_POST", 
+                    "id_publicacion" => $idPublicacion,
+                    "id_emprendimiento" => $datos_notificacion['id_emprendimiento'] ?? null 
+                );
                 $rpta_fcm = enviarNotificacionFCM($token_destino, $titulo_fcm, $cuerpo_fcm, $payload);
                 $response['fcm_result'] = $rpta_fcm;
             }
-        } else {
-            $response = array("status" => "error", "message" => mysqli_error($con));
         }
     }
+    // --- FIN LÓGICA NOTIFICACIÓN ---
     
     mysqli_close($con);
     return $response;
 }
+?>
