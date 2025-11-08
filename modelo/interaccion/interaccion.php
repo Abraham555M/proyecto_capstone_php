@@ -1,24 +1,19 @@
 <?php 
 // RUTA: modelo/interaccion/interaccion.php
 
-/*
- * ----------------------------------------------------------------------
- * INCLUSIONES GLOBALES
- * ----------------------------------------------------------------------
- * 1. Incluimos el nuevo modelo de notificación (que contiene las funciones auxiliares).
- */
 require_once(__DIR__ . '/../notificacion/notificacion.php'); 
+
+// ... (Las funciones auxiliares registrarNotificacionDB y obtenerDatosNotificacionPublicacion se cargan desde notificacion.php) ...
 
 
 // =========================================================================
 // FUNCIÓN PRINCIPAL: Registrar Like de Publicación (Segura y Completa)
 // =========================================================================
-function registrarLike($idPublicacion, $idEstudiante){ // $idEstudiante es el INTERACTOR
-    // Incluimos la conexión local para esta función
+function registrarLike($idPublicacion, $idEstudiante){
     include("../../configuracion/conexion.php"); 
     
     $response = array("status" => "error", "message" => "Error desconocido");
-    $is_liked = false; // Flag para controlar la notificación
+    $is_liked = false; 
 
     // 1. Verificar si ya existe el like (Usando Sentencias Preparadas)
     $sql_check = "SELECT id_interaccion, est_interaccion 
@@ -58,7 +53,7 @@ function registrarLike($idPublicacion, $idEstudiante){ // $idEstudiante es el IN
                            
             if(mysqli_stmt_execute($stmt_update)){
                 $response = array("status" => "liked");
-                $is_liked = true; // Activar lógica de notificación
+                $is_liked = true; 
             } else {
                 $response = array("status" => "error", "message" => mysqli_error($con));
             }
@@ -75,22 +70,21 @@ function registrarLike($idPublicacion, $idEstudiante){ // $idEstudiante es el IN
                        
         if(mysqli_stmt_execute($stmt_insert)){
             $response = array("status" => "liked");
-            $is_liked = true; // Activar lógica de notificación
+            $is_liked = true; 
         } else {
             $response = array("status" => "error", "message" => mysqli_error($con));
         }
         mysqli_stmt_close($stmt_insert);
     }
     
-    mysqli_stmt_close($stmt_check); // Cerrar el statement de verificación
+    mysqli_stmt_close($stmt_check); 
 
-    // --- 🚨 LÓGICA DE NOTIFICACIÓN ACTUALIZADA (DB y FCM) 🚨 ---
+    // --- LÓGICA DE NOTIFICACIÓN (DB y FCM) ---
     if ($is_liked) {
         $datos_notificacion = obtenerDatosNotificacionPublicacion($con, $idPublicacion, $idEstudiante); 
         
         if ($datos_notificacion && $datos_notificacion['id_dueno'] != $idEstudiante) { 
             
-            // Verificamos si el receptor (id_dueno) quiere recibir notificaciones de LIKES
             if ($datos_notificacion['notif_likes'] == 1) {
             
                 $id_receptor = $datos_notificacion['id_dueno'];
@@ -101,16 +95,19 @@ function registrarLike($idPublicacion, $idEstudiante){ // $idEstudiante es el IN
                 $cuerpo_fcm = $nombre_interactor . " le ha dado Me gusta a tu publicación.";
                 $id_tipo_notif = 2; // 2 = 'likePublicacion'
 
-                // 1. REGISTRAR EN LA TABLA NOTIFICACION (Llamada actualizada)
+                // 1. REGISTRAR EN LA TABLA NOTIFICACION
                 $rpta_db = registrarNotificacionDB($con, $id_receptor, $idEstudiante, $id_tipo_notif, $titulo_fcm, $cuerpo_fcm);
                 $response['notificacion_db'] = $rpta_db;
 
                 // 2. ENVIAR NOTIFICACIÓN PUSH FCM
+                
+                // 🚨🚨 CORRECCIÓN CRÍTICA: Convertir todos los valores del payload a String
                 $payload = array(
                     "action" => "NEW_LIKE_POST", 
-                    "id_publicacion" => $idPublicacion,
-                    "id_emprendimiento" => $datos_notificacion['id_emprendimiento'] ?? null 
+                    "id_publicacion" => (string)$idPublicacion, // CAST A STRING
+                    "id_emprendimiento" => (string)($datos_notificacion['id_emprendimiento'] ?? '0') // CAST A STRING
                 );
+                
                 $rpta_fcm = enviarNotificacionFCM($token_destino, $titulo_fcm, $cuerpo_fcm, $payload);
                 $response['fcm_result'] = $rpta_fcm;
             }

@@ -31,7 +31,7 @@ if (isset($_GET['id_publicacion'])) {
 
         // 2️⃣ Según el tipo de publicación, obtenemos sus datos específicos
         switch ($id_tipo) {
-            case 4: // Evento
+            case 3: // Evento
                 $sql_evento = "SELECT 
                                 id_evento,
                                 id_publicacion,
@@ -45,7 +45,7 @@ if (isset($_GET['id_publicacion'])) {
                 }
                 break;
 
-            case 3: // Promoción
+            case 2: // Promoción
                 $sql_promocion = "SELECT 
                                     id_promocion,
                                     id_publicacion,

@@ -112,5 +112,98 @@ function obtenerDatosNotificacionComentario($con, $idComentario, $idEstudianteIn
 
     return $data;
 }
+function guardarConfiguracionNotificaciones($con, $idEstudiante, $publicaciones, $comentarios, $likes) {
+    $data = array("status" => "error", "message" => "No se pudo guardar la configuración");
 
+    $sql = "UPDATE estudiante 
+            SET 
+                notif_publicaciones = ?, 
+                notif_comentarios = ?, 
+                notif_likes = ?
+            WHERE 
+                id_estudiante = ?";
+    
+    if ($stmt = mysqli_prepare($con, $sql)) {
+        // "iiii" -> 4 enteros (publicaciones, comentarios, likes, idEstudiante)
+        mysqli_stmt_bind_param($stmt, "iiii", $publicaciones, $comentarios, $likes, $idEstudiante);
+        
+        if (mysqli_stmt_execute($stmt)) {
+            $data = array("status" => "success", "message" => "Configuración guardada");
+        } else {
+            $data["message"] = "Error al ejecutar: " . mysqli_error($con);
+        }
+        mysqli_stmt_close($stmt);
+    } else {
+        $data["message"] = "Error al preparar: " . mysqli_error($con);
+    }
+    return $data;
+}
+
+function leerConfiguracionNotificaciones($con, $idEstudiante) {
+    $data = array("status" => "error", "message" => "No se pudieron leer los datos");
+
+    $sql = "SELECT notif_publicaciones, notif_comentarios, notif_likes 
+            FROM estudiante 
+            WHERE id_estudiante = ?";
+    
+    if ($stmt = mysqli_prepare($con, $sql)) {
+        mysqli_stmt_bind_param($stmt, "i", $idEstudiante);
+        
+        if (mysqli_stmt_execute($stmt)) {
+            $result = mysqli_stmt_get_result($stmt);
+            if ($row = mysqli_fetch_assoc($result)) {
+                $data = array(
+                    "status" => "success",
+                    "config" => array(
+                        // Convertimos de 1/0 (DB) a boolean (true/false) para Java
+                        "publicaciones" => (bool)$row['notif_publicaciones'],
+                        "comentarios" => (bool)$row['notif_comentarios'],
+                        "likes" => (bool)$row['notif_likes']
+                    )
+                );
+            } else {
+                 $data["message"] = "Estudiante no encontrado";
+            }
+        }
+        mysqli_stmt_close($stmt);
+    }
+    return $data;
+}
+    function obtenerSeguidoresParaNotificar($con, $idEmprendimiento, $idEstudiantePublicador) {
+        
+        $listaSeguidores = [];
+
+        // Buscamos a todos los estudiantes (e) que siguen (s) a este emprendimiento
+        // Y que tienen las notificaciones de publicaciones (e.notif_publicaciones) activadas.
+        $sql = "SELECT 
+                    e.id_estudiante,
+                    e.token_fcm
+                FROM 
+                    seguimiento s
+                JOIN 
+                    estudiante e ON s.id_estudiante = e.id_estudiante
+                WHERE 
+                    s.id_emprendimiento = ?
+                AND 
+                    s.est_seguimiento = 1
+                AND 
+                    e.notif_publicaciones = 1
+                AND 
+                    e.id_estudiante != ?"; // Evitar notificar al propio publicador
+
+        if ($stmt = mysqli_prepare($con, $sql)) {
+            mysqli_stmt_bind_param($stmt, "ii", $idEmprendimiento, $idEstudiantePublicador);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            
+            while ($row = mysqli_fetch_assoc($result)) {
+                // Añadimos solo si tienen un token registrado
+                if (!empty($row['token_fcm'])) {
+                    $listaSeguidores[] = $row;
+                }
+            }
+            mysqli_stmt_close($stmt);
+        }
+        return $listaSeguidores;
+    }
 ?>

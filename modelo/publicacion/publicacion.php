@@ -153,61 +153,60 @@
     }
 
     function listarComentariosPublicacion($idPublicacion, $idEstudiante){
-            require_once("../../configuracion/conexion.php");
-            
-            $sql = "SELECT 
-                        c.id_comentario,
-                        c.con_comentario,
-                        c.fch_comentario,
-                        c.id_estudiante,  
-                        e.nom_estudiante,
-                        e.ape_pat_estudiante,
-                        e.ape_mat_estudiante,
-                        COUNT(DISTINCT CASE WHEN i.est_interaccion = 1 THEN i.id_interaccion END) AS total_likes,
-                        MAX(CASE 
-                                WHEN i.id_estudiante = ? 
-                                AND i.id_tipo_interaccion = 1 
-                                AND i.est_interaccion = 1 
-                                THEN 1 ELSE 0 
-                            END) AS dio_like
-                    FROM comentario c
-                    INNER JOIN estudiante e ON c.id_estudiante = e.id_estudiante
-                    LEFT JOIN interaccion i 
-                        ON c.id_comentario = i.id_comentario 
-                    AND i.id_tipo_interaccion = 1
-                    WHERE c.id_publicacion = ? 
-                    AND c.est_comentario = 1
-                    GROUP BY c.id_comentario, c.con_comentario, c.fch_comentario, 
-                            c.id_estudiante, e.nom_estudiante, e.ape_pat_estudiante, e.ape_mat_estudiante
-                    ORDER BY c.fch_comentario DESC";
+        require_once("../../configuracion/conexion.php");
+        
+        $sql = "SELECT 
+                    c.id_comentario,
+                    c.con_comentario,
+                    c.fch_comentario,
+                    c.id_estudiante,  
+                    e.nom_estudiante,
+                    e.ape_pat_estudiante,
+                    e.ape_mat_estudiante,
+                    COUNT(DISTINCT CASE WHEN i.est_interaccion = 1 THEN i.id_interaccion END) AS total_likes,
+                    MAX(CASE 
+                            WHEN i.id_estudiante = ? 
+                            AND i.id_tipo_interaccion = 1 
+                            AND i.est_interaccion = 1 
+                            THEN 1 ELSE 0 
+                        END) AS dio_like
+                FROM comentario c
+                INNER JOIN estudiante e ON c.id_estudiante = e.id_estudiante
+                LEFT JOIN interaccion i 
+                    ON c.id_comentario = i.id_comentario 
+                AND i.id_tipo_interaccion = 1
+                WHERE c.id_publicacion = ? 
+                AND c.est_comentario = 1
+                GROUP BY c.id_comentario, c.con_comentario, c.fch_comentario, 
+                        c.id_estudiante, e.nom_estudiante, e.ape_pat_estudiante, e.ape_mat_estudiante
+                ORDER BY c.fch_comentario DESC";
 
-            $comentarios = [];
+        $comentarios = [];
 
-            if ($stmt = mysqli_prepare($con, $sql)) {
-                mysqli_stmt_bind_param($stmt, "ii", $idEstudiante, $idPublicacion);
-                mysqli_stmt_execute($stmt);
-                $resultado = mysqli_stmt_get_result($stmt);
+        if ($stmt = mysqli_prepare($con, $sql)) {
+            mysqli_stmt_bind_param($stmt, "ii", $idEstudiante, $idPublicacion);
+            mysqli_stmt_execute($stmt);
+            $resultado = mysqli_stmt_get_result($stmt);
 
-                while ($row = mysqli_fetch_assoc($resultado)) {
-                    $comentarios[] = [
-                        "id_comentario"   => $row["id_comentario"],
-                        "con_comentario"  => $row["con_comentario"],
-                        "fch_comentario"  => $row["fch_comentario"],
-                        "id_estudiante"   => $row["id_estudiante"], // 👈 ahora sí lo envías al adapter
-                        "estudiante"      => $row["nom_estudiante"] . " " . 
-                                            $row["ape_pat_estudiante"] . " " . 
-                                            $row["ape_mat_estudiante"],
-                        "total_likes"     => (int)$row["total_likes"],
-                        "dio_like"        => (int)$row["dio_like"]
-                    ];
-                }
-
-                mysqli_stmt_close($stmt);
+            while ($row = mysqli_fetch_assoc($resultado)) {
+                $comentarios[] = [
+                    "id_comentario"   => $row["id_comentario"],
+                    "con_comentario"  => $row["con_comentario"],
+                    "fch_comentario"  => $row["fch_comentario"],
+                    "id_estudiante"   => $row["id_estudiante"], // 👈 ahora sí lo envías al adapter
+                    "estudiante"      => $row["nom_estudiante"] . " " . 
+                                        $row["ape_pat_estudiante"] . " " . 
+                                        $row["ape_mat_estudiante"],
+                    "total_likes"     => (int)$row["total_likes"],
+                    "dio_like"        => (int)$row["dio_like"]
+                ];
             }
 
-            return $comentarios;
+            mysqli_stmt_close($stmt);
         }
 
+        return $comentarios;
+    }
 
     function cantidadPublicacionesPerfil($idEstudiante){
         require_once("../../configuracion/conexion.php"); // archivo con la conexión $conexion
@@ -216,7 +215,7 @@
         $sql = "SELECT COUNT(p.id_publicacion) AS total_publicaciones
                 FROM emprendimiento e
                 INNER JOIN publicacion p ON e.id_emprendimiento = p.id_emprendimiento
-                WHERE e.id_estudiante = ? AND p.est_publicacion = 1"; 
+                WHERE e.id_estudiante = ? AND p.est_publicacion = 1 AND e.est_emprendimiento = 1"; 
 
         if($stmt = $con->prepare($sql)){
             $stmt->bind_param("i", $idEstudiante); 

@@ -1,7 +1,17 @@
 <?php 
+// RUTA: modelo/comentario/comentario.php
 
+/*
+ * ----------------------------------------------------------------------
+ * INCLUSIONES GLOBALES
+ * ----------------------------------------------------------------------
+ */
 require_once(__DIR__ . '/../notificacion/notificacion.php'); 
 
+
+// =========================================================================
+// FUNCIÓN PRINCIPAL: Registrar Comentario
+// =========================================================================
 function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
     require_once("../../configuracion/conexion.php");
     $data = array("status" => "error", "message" => "No se pudo registrar el comentario");
@@ -23,7 +33,7 @@ function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
                     "id_insertado" => $id_insertado
                 );
                 
-                // --- 🚨 LÓGICA DE NOTIFICACIÓN ACTUALIZADA (DB y FCM) 🚨 ---
+                // --- LÓGICA DE NOTIFICACIÓN ---
                 $datos_notificacion = obtenerDatosNotificacionComentario($con, $id_insertado, $idEstudiante, true); 
                 
                 if ($datos_notificacion) { 
@@ -31,26 +41,27 @@ function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
 
                     if ($id_receptor != $idEstudiante) { 
                         
-                        // Verificamos si el receptor quiere recibir notificaciones de COMENTARIOS
-                        if ($datos_notificacion['notif_comentarios'] == 1) {
-
+                        if ($datos_notificacion['notif_comentarios'] == 1) { 
                             $token_destino = $datos_notificacion['token_dueno'];
                             $nombre_interactor = $datos_notificacion['nombre_interactor'];
                             
                             $titulo_fcm = "¡Nuevo Comentario! 💬";
                             $cuerpo_fcm = $nombre_interactor . " ha comentado tu publicación.";
-                            $id_tipo_notif = 3; // 3 = 'nuevoComentario'
+                            $id_tipo_notif = 3; 
 
                             // 1. REGISTRAR EN LA TABLA NOTIFICACION
                             $rpta_db = registrarNotificacionDB($con, $id_receptor, $idEstudiante, $id_tipo_notif, $titulo_fcm, $cuerpo_fcm);
                             $data['notificacion_db'] = $rpta_db; 
 
                             // 2. ENVIAR NOTIFICACIÓN PUSH FCM
+                            
+                            // 🚨🚨 CORRECCIÓN: Convertir IDs a String para FCM v1
                             $payload = array(
                                 "action" => "NEW_COMMENT", 
-                                "id_publicacion" => $idPublicacion,
-                                "id_emprendimiento" => $datos_notificacion['id_emprendimiento'] ?? null
+                                "id_publicacion" => (string)$idPublicacion,
+                                "id_emprendimiento" => (string)($datos_notificacion['id_emprendimiento'] ?? '0')
                             );
+                            
                             $rpta_fcm = enviarNotificacionFCM($token_destino, $titulo_fcm, $cuerpo_fcm, $payload);
                             $data['fcm_result'] = $rpta_fcm;
                         }
@@ -73,6 +84,10 @@ function registrarComentario($idPublicacion, $idEstudiante, $conComentario){
     return $data; 
 }
 
+
+// =========================================================================
+// FUNCIÓN PRINCIPAL: Registrar Like de Comentario (Corregida y Segura)
+// =========================================================================
 function registrarComentarioLike($idComentario, $idEstudiante){
     include("../../configuracion/conexion.php"); 
     $response = array("status" => "error", "message" => "Error desconocido");
@@ -140,7 +155,7 @@ function registrarComentarioLike($idComentario, $idEstudiante){
     
     mysqli_stmt_close($stmt_check); 
 
-    // --- 🚨 LÓGICA DE NOTIFICACIÓN ACTUALIZADA (DB y FCM) 🚨 ---
+    // --- LÓGICA DE NOTIFICACIÓN INTEGRADA (DB y FCM) ---
     if ($is_liked) {
         $datos_notificacion = obtenerDatosNotificacionComentario($con, $idComentario, $idEstudiante, false); 
         
@@ -149,8 +164,7 @@ function registrarComentarioLike($idComentario, $idEstudiante){
 
             if ($id_receptor != $idEstudiante) { 
             
-                // Verificamos si el receptor (dueño del comentario) quiere recibir notificaciones de LIKES
-                if ($datos_notificacion['notif_likes'] == 1) {
+                if ($datos_notificacion['notif_likes'] == 1) { 
             
                     $token_destino = $datos_notificacion['token_dueno'];
                     $nombre_interactor = $datos_notificacion['nombre_interactor'];
@@ -158,18 +172,21 @@ function registrarComentarioLike($idComentario, $idEstudiante){
                     
                     $titulo_fcm = "¡Reacción en Comentario! 👍";
                     $cuerpo_fcm = $nombre_interactor . " le ha dado Me gusta a tu comentario.";
-                    $id_tipo_notif = 1; // 1 = 'likeComentario'
+                    $id_tipo_notif = 1; 
 
                     // 1. REGISTRAR EN LA TABLA NOTIFICACION
                     $rpta_db = registrarNotificacionDB($con, $id_receptor, $idEstudiante, $id_tipo_notif, $titulo_fcm, $cuerpo_fcm);
                     $response['notificacion_db'] = $rpta_db;
 
                     // 2. ENVIAR NOTIFICACIÓN PUSH FCM
+                    
+                    // 🚨🚨 CORRECCIÓN: Convertir IDs a String para FCM v1
                     $payload = array(
                         "action" => "NEW_LIKE_COMMENT", 
-                        "id_publicacion" => $idPublicacion,
-                        "id_emprendimiento" => $datos_notificacion['id_emprendimiento'] ?? null
+                        "id_publicacion" => (string)$idPublicacion,
+                        "id_emprendimiento" => (string)($datos_notificacion['id_emprendimiento'] ?? '0')
                     );
+                    
                     $rpta_fcm = enviarNotificacionFCM($token_destino, $titulo_fcm, $cuerpo_fcm, $payload);
                     $response['fcm_result'] = $rpta_fcm;
                 }
@@ -182,6 +199,10 @@ function registrarComentarioLike($idComentario, $idEstudiante){
     return $response;
 }
 
+
+// =========================================================================
+// FUNCIÓN PRINCIPAL: Eliminar Comentario
+// =========================================================================
 function eliminarComentario($idComentario, $idEstudiante) {
     require_once("../../configuracion/conexion.php");
     $data = array("status" => "error", "message" => "No se pudo eliminar el comentario");

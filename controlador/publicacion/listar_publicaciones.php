@@ -18,6 +18,7 @@ if ($idEstudiante > 0) {
             INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
             WHERE e.id_estudiante = ? 
               AND p.est_publicacion = 1
+              AND e.est_emprendimiento = 1
             ORDER BY p.fch_publicacion DESC";
 
     if ($stmt = $con->prepare($sql)) {

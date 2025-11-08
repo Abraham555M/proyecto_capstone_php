@@ -17,6 +17,7 @@ if ($idEstudiante > 0) {
                 FROM emprendimiento e
                 WHERE e.id_categoria = c.id_categoria 
                   AND e.id_estudiante = ?
+                  AND e.est_emprendimiento = 1
             )";
 
     if($stmt = $con->prepare($sql)) {

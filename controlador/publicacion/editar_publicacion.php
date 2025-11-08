@@ -18,9 +18,13 @@ try {
     $con_publicacion = $_POST['con_publicacion'];
     $img_publicacion = $_POST['img_publicacion'];
 
-    // 🧩 Actualizar tabla principal
+    // 🧩 Actualizar tabla principal + marcar est_actualizado = 1
     $sql = "UPDATE publicacion 
-            SET id_tipo_publicacion = ?, tit_publicacion = ?, con_publicacion = ?, img_publicacion = ? 
+            SET id_tipo_publicacion = ?, 
+                tit_publicacion = ?, 
+                con_publicacion = ?, 
+                img_publicacion = ?, 
+                est_actualizado = 1
             WHERE id_publicacion = ?";
     $stmt = $con->prepare($sql);
     $stmt->bind_param("ssssi", $id_tipo_publicacion, $tit_publicacion, $con_publicacion, $img_publicacion, $id_publicacion);
@@ -47,7 +51,7 @@ try {
                 break;
 
             // 🟢 EVENTO
-            case "2": // ID del tipo evento
+            case "3": // ID del tipo evento
                 $fch_evento = $_POST['fch_evento'] ?? null;
                 $lgr_evento = $_POST['lgr_evento'] ?? null;
                 if ($fch_evento !== null && $lgr_evento !== null) {
@@ -61,7 +65,7 @@ try {
                 break;
 
             // 🟢 PROMOCIÓN
-            case "3": // ID del tipo promoción
+            case "2": // ID del tipo promoción
                 $dsc_promocion = $_POST['dsc_promocion'] ?? null;
                 $fch_ini_promocion = $_POST['fch_ini_promocion'] ?? null;
                 $fch_fin_promocion = $_POST['fch_fin_promocion'] ?? null;
