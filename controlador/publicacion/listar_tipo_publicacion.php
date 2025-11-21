@@ -1,14 +1,13 @@
 <?php
-require_once("../../configuracion/conexion.php"); // tu archivo de conexión a BD
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+error_reporting(0);
 
-$sql = "SELECT id_tipo_publicacion, nom_tipo_publicacion FROM tipo_publicacion";
-$result = $con->query($sql);
+require_once "../../modelo/publicacion/publicacion.php";
 
-$datos = array();
+// Llamar al modelo
+$resultado = listarTiposPublicacion();
 
-while ($row = $result->fetch_assoc()) {
-    $datos[] = $row;
-}
-
-echo json_encode($datos);
+// Responder JSON
+echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
 ?>

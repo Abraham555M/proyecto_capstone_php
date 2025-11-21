@@ -591,4 +591,377 @@
 
         return $data;
     }
+
+    //Gonzalo
+    function agregarPublicacion($data) {
+        require("../../configuracion/conexion.php");
+
+        $respuesta = [
+            "success" => false,
+            "message" => ""
+        ];
+
+        // Datos principales
+        $idEmprendimiento = $data["id_emprendimiento"];
+        $idTipo = $data["id_tipo_publicacion"];
+        $titulo = $data["tit_publicacion"];
+        $contenido = $data["con_publicacion"];
+        $estado = $data["est_publicacion"];
+        $imgUrl = $data["img_publicacion"] ?? null;
+        $fecha = date("Y-m-d H:i:s");
+
+        // Insertar publicación
+        $sql = "INSERT INTO publicacion 
+                (id_emprendimiento, id_tipo_publicacion, tit_publicacion, con_publicacion, img_publicacion, fch_publicacion, est_publicacion)
+                VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("iissssi", $idEmprendimiento, $idTipo, $titulo, $contenido, $imgUrl, $fecha, $estado);
+
+        if (!$stmt->execute()) {
+            $respuesta["message"] = "Error al registrar publicación";
+            return $respuesta;
+        }
+
+        $idPublicacion = $con->insert_id;
+
+        //-----------------------------------------
+        //  INSERTAR DETALLES SEGÚN TIPO
+        //-----------------------------------------
+        switch ($idTipo) {
+
+            case 1: // PRODUCTO
+                $precio = $data["prc_producto"] ?? 0;
+                $stock = $data["stk_producto"] ?? 0;
+
+                $sqlDet = "INSERT INTO producto (id_publicacion, prc_producto, stk_producto, est_producto)
+                        VALUES (?, ?, ?, 1)";
+                $stmt2 = $con->prepare($sqlDet);
+                $stmt2->bind_param("idd", $idPublicacion, $precio, $stock);
+
+                if (!$stmt2->execute()) {
+                    $respuesta["message"] = "Error al registrar producto";
+                    return $respuesta;
+                }
+                break;
+
+            case 2: // PROMOCIÓN
+                $desc = $data["dsc_promocion"] ?? 0;
+                $ini = $data["fch_ini_promocion"] ?? null;
+                $fin = $data["fch_fin_promocion"] ?? null;
+
+                $sqlDet = "INSERT INTO promocion (id_publicacion, dsc_promocion, fch_ini_promocion, fch_fin_promocion, est_promocion)
+                        VALUES (?, ?, ?, ?, 1)";
+                $stmt2 = $con->prepare($sqlDet);
+                $stmt2->bind_param("isss", $idPublicacion, $desc, $ini, $fin);
+
+                if (!$stmt2->execute()) {
+                    $respuesta["message"] = "Error al registrar promoción";
+                    return $respuesta;
+                }
+                break;
+
+            case 3: // EVENTO
+                $fechaEvento = $data["fch_evento"] ?? null;
+                $lugar = $data["lgr_evento"] ?? null;
+
+                $sqlDet = "INSERT INTO evento (id_publicacion, fch_evento, lgr_evento, est_evento)
+                        VALUES (?, ?, ?, 1)";
+                $stmt2 = $con->prepare($sqlDet);
+                $stmt2->bind_param("iss", $idPublicacion, $fechaEvento, $lugar);
+
+                if (!$stmt2->execute()) {
+                    $respuesta["message"] = "Error al registrar evento";
+                    return $respuesta;
+                }
+                break;
+
+            default:
+                // Sin tabla adicional
+                break;
+        }
+
+        // Todo correcto
+        $respuesta["success"] = true;
+        $respuesta["message"] = "Publicación creada correctamente";
+
+        return $respuesta;
+    }
+
+    function eliminarPublicacion($con, $id_publicacion) {
+        $sql = "UPDATE publicacion SET est_publicacion = 0 WHERE id_publicacion = ?";
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("i", $id_publicacion);
+        return $stmt->execute();
+    }
+
+    function actualizarPublicacion($con, $id_tipo_publicacion, $tit_publicacion, $con_publicacion, $img_publicacion, $id_publicacion) {
+        $sql = "UPDATE publicacion 
+                SET id_tipo_publicacion = ?, 
+                    tit_publicacion = ?, 
+                    con_publicacion = ?, 
+                    img_publicacion = ?, 
+                    est_actualizado = 1
+                WHERE id_publicacion = ?";
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("ssssi", $id_tipo_publicacion, $tit_publicacion, $con_publicacion, $img_publicacion, $id_publicacion);
+        $stmt->execute();
+
+        return $stmt->affected_rows >= 0;
+    }
+
+    function actualizarProducto($con, $prc_producto, $stk_producto, $id_publicacion) {
+        $sql = "UPDATE producto 
+                SET prc_producto = ?, stk_producto = ?
+                WHERE id_publicacion = ?";
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("ssi", $prc_producto, $stk_producto, $id_publicacion);
+        return $stmt->execute();
+    }
+
+    function actualizarEvento($con, $fch_evento, $lgr_evento, $id_publicacion) {
+        $sql = "UPDATE evento 
+                SET fch_evento = ?, lgr_evento = ?
+                WHERE id_publicacion = ?";
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("ssi", $fch_evento, $lgr_evento, $id_publicacion);
+        return $stmt->execute();
+    }
+
+    function actualizarPromocion($con, $dsc_promocion, $fch_ini, $fch_fin, $id_publicacion) {
+        $sql = "UPDATE promocion 
+                SET dsc_promocion = ?, fch_ini_promocion = ?, fch_fin_promocion = ?
+                WHERE id_publicacion = ?";
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("sssi", $dsc_promocion, $fch_ini, $fch_fin, $id_publicacion);
+        return $stmt->execute();
+    }
+
+    function obtenerDetallePublicacion($idPublicacion) {
+        require("../../configuracion/conexion.php");
+
+        $respuesta = [
+            "status" => "error",
+            "data" => null
+        ];
+
+        // Consulta principal
+        $sql = "SELECT 
+                    p.id_publicacion,
+                    p.id_emprendimiento,
+                    p.id_tipo_publicacion,
+                    p.tit_publicacion,
+                    p.con_publicacion,
+                    p.img_publicacion,
+                    p.fch_publicacion,
+                    p.est_publicacion,
+                    tp.nom_tipo_publicacion
+                FROM publicacion p
+                INNER JOIN tipo_publicacion tp 
+                    ON p.id_tipo_publicacion = tp.id_tipo_publicacion
+                WHERE p.id_publicacion = ?";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("i", $idPublicacion);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        // Validar existencia
+        if ($result->num_rows == 0) {
+            return $respuesta;
+        }
+
+        $publicacion = $result->fetch_assoc();
+        $idTipo = intval($publicacion['id_tipo_publicacion']);
+        $datosExtra = [];
+
+        // Obtener datos adicionales según tipo
+        switch ($idTipo) {
+
+            case 3: // Evento
+                $sqlEvento = "SELECT 
+                                id_evento,
+                                id_publicacion,
+                                fch_evento,
+                                lgr_evento
+                            FROM evento
+                            WHERE id_publicacion = ?";
+                $stmt2 = $con->prepare($sqlEvento);
+                $stmt2->bind_param("i", $idPublicacion);
+                $stmt2->execute();
+                $extra = $stmt2->get_result()->fetch_assoc();
+                if ($extra) { $datosExtra = $extra; }
+                break;
+
+            case 2: // Promoción
+                $sqlPromo = "SELECT 
+                                id_promocion,
+                                id_publicacion,
+                                dsc_promocion,
+                                fch_ini_promocion,
+                                fch_fin_promocion
+                            FROM promocion
+                            WHERE id_publicacion = ?";
+                $stmt2 = $con->prepare($sqlPromo);
+                $stmt2->bind_param("i", $idPublicacion);
+                $stmt2->execute();
+                $extra = $stmt2->get_result()->fetch_assoc();
+                if ($extra) { $datosExtra = $extra; }
+                break;
+
+            case 1: // Producto
+                $sqlProducto = "SELECT 
+                                    id_producto,
+                                    id_publicacion,
+                                    prc_producto,
+                                    stk_producto
+                                FROM producto
+                                WHERE id_publicacion = ?";
+                $stmt2 = $con->prepare($sqlProducto);
+                $stmt2->bind_param("i", $idPublicacion);
+                $stmt2->execute();
+                $extra = $stmt2->get_result()->fetch_assoc();
+                if ($extra) { $datosExtra = $extra; }
+                break;
+
+            case 4: // Servicio (sin tabla extra)
+                $datosExtra = [];
+                break;
+
+            default:
+                return [
+                    "status" => "error",
+                    "msg" => "Tipo de publicación no reconocido"
+                ];
+        }
+
+        // Respuesta final
+        return [
+            "status" => "success",
+            "data" => [
+                "publicacion" => $publicacion,
+                "detalles" => $datosExtra
+            ]
+        ];
+    }
+
+    function listarCategoriasPublicacion($idEstudiante){
+        require("../../configuracion/conexion.php");
+
+        $categorias = [];
+
+        if ($idEstudiante <= 0) {
+            return $categorias;
+        }
+
+        $sql = "SELECT 
+                    e.id_emprendimiento, 
+                    c.id_categoria, 
+                    c.nom_categoria, 
+                    c.img_categoria
+                FROM emprendimiento e
+                INNER JOIN categoria c 
+                    ON e.id_categoria = c.id_categoria
+                WHERE e.id_estudiante = ?
+                AND e.est_emprendimiento = 1";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("i", $idEstudiante);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $categorias[] = $row;
+        }
+
+        return $categorias;
+    }
+
+    function listarPublicacionesCategorias($idEstudiante, $idCategoria, $idEmprendimiento){
+        require("../../configuracion/conexion.php");
+
+        $publicaciones = [];
+
+        if ($idEstudiante <= 0 || $idCategoria <= 0 || $idEmprendimiento <= 0) {
+            return $publicaciones;
+        }
+
+        $sql = "SELECT 
+                    p.id_publicacion AS id,
+                    p.tit_publicacion AS titulo,
+                    p.con_publicacion AS descripcion,
+                    p.img_publicacion AS imagen_url
+                FROM publicacion p
+                INNER JOIN emprendimiento e 
+                    ON p.id_emprendimiento = e.id_emprendimiento
+                WHERE e.id_estudiante = ?
+                AND e.id_categoria = ?
+                AND p.id_emprendimiento = ?
+                AND p.est_publicacion = 1";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("iii", $idEstudiante, $idCategoria, $idEmprendimiento);
+        $stmt->execute();
+
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $publicaciones[] = $row;
+        }
+
+        return $publicaciones;
+    }
+
+    function listarPublicaciones($idEstudiante){
+        require("../../configuracion/conexion.php");
+
+        $publicaciones = [];
+
+        if ($idEstudiante <= 0) {
+            return $publicaciones;
+        }
+
+        $sql = "SELECT 
+                    p.id_publicacion AS id,
+                    p.tit_publicacion AS titulo,
+                    p.con_publicacion AS descripcion,
+                    p.img_publicacion AS imagen_url
+                FROM publicacion p
+                INNER JOIN emprendimiento e 
+                    ON p.id_emprendimiento = e.id_emprendimiento
+                WHERE e.id_estudiante = ? 
+                AND p.est_publicacion = 1
+                AND e.est_emprendimiento = 1
+                ORDER BY p.fch_publicacion DESC";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("i", $idEstudiante);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $publicaciones[] = $row;
+        }
+
+        return $publicaciones;
+    }
+
+    function listarTiposPublicacion() {
+        require("../../configuracion/conexion.php");
+
+        $tipos = [];
+
+        $sql = "SELECT id_tipo_publicacion, nom_tipo_publicacion 
+                FROM tipo_publicacion";
+
+        $stmt = $con->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $tipos[] = $row;
+        }
+
+        return $tipos;
+    }
 ?>

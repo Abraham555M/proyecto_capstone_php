@@ -1,29 +1,24 @@
 <?php
-include '../../configuracion/conexion.php';
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
 
-$id_estudiante = $_GET['id_estudiante'];
-$id_categoria = $_GET['id_categoria'];
-$id_emprendimiento = $_GET['id_emprendimiento'];
+error_reporting(0);
 
-$query = "SELECT p.id_publicacion AS id,
-                 p.tit_publicacion AS titulo,
-                 p.con_publicacion AS descripcion,
-                 p.img_publicacion AS imagen_url
-          FROM publicacion p
-          INNER JOIN emprendimiento e ON p.id_emprendimiento = e.id_emprendimiento
-          WHERE e.id_estudiante = '$id_estudiante'
-          AND e.id_categoria = '$id_categoria'
-          AND p.id_emprendimiento = '$id_emprendimiento'
-          AND p.est_publicacion = 1";
+$idEstudiante = isset($_GET['id_estudiante']) ? intval($_GET['id_estudiante']) : 0;
+$idCategoria = isset($_GET['id_categoria']) ? intval($_GET['id_categoria']) : 0;
+$idEmprendimiento = isset($_GET['id_emprendimiento']) ? intval($_GET['id_emprendimiento']) : 0;
 
-$result = $con->query($query);
-
-$publicaciones = array();
-
-while ($row = $result->fetch_assoc()) {
-    // Con Firebase, la URL ya es completa, no se modifica
-    $publicaciones[] = $row;
+// Validación básica
+if ($idEstudiante <= 0 || $idCategoria <= 0 || $idEmprendimiento <= 0) {
+    echo json_encode([]);
+    exit;
 }
 
-echo json_encode($publicaciones);
+require_once "../../modelo/publicacion/publicacion.php";
+
+// Llamar al modelo
+$resultado = listarPublicacionesCategorias($idEstudiante, $idCategoria, $idEmprendimiento);
+
+// Respuesta
+echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
 ?>

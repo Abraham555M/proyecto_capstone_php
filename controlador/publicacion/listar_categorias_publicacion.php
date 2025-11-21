@@ -1,21 +1,22 @@
 <?php
-include '../../configuracion/conexion.php';
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
 
-$id_estudiante = $_GET['id_estudiante'];
+error_reporting(0);
 
-// Consulta solo los emprendimientos activos (est_emprendimiento = 1)
-$query = "SELECT e.id_emprendimiento, c.id_categoria, c.nom_categoria, c.img_categoria
-          FROM emprendimiento e
-          INNER JOIN categoria c ON e.id_categoria = c.id_categoria
-          WHERE e.id_estudiante = '$id_estudiante' 
-          AND e.est_emprendimiento = 1";
+$idEstudiante = isset($_GET['id_estudiante']) ? intval($_GET['id_estudiante']) : 0;
 
-$result = $con->query($query);
-$categorias = array();
-
-while ($row = $result->fetch_assoc()) {
-    $categorias[] = $row;
+// Validación
+if ($idEstudiante <= 0) {
+    echo json_encode([]);
+    exit;
 }
 
-echo json_encode($categorias);
+require_once "../../modelo/publicacion/publicacion.php";
+
+// Llamar al modelo
+$resultado = listarCategoriasPublicacion($idEstudiante);
+
+// Respuesta JSON
+echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
 ?>
